@@ -1,0 +1,1537 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wordback">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Wordback</title>
+<meta name="description" content="Wordback: Incident Management Dashboard">
+<meta name="theme-color" content="#0b0c0e">
+<style>
+/* Layout: one column on phone, tile grid on tablet. Dark charcoal, high contrast, big tap targets. */
+:root{
+  --bg:#141618; --panel:#1f2327; --panel2:#2a2f35; --line:#3a4148;
+  --fg:#f4f6f7; --muted:#aab2ba; --dim:#7d868f;
+  --red:#ff4b45; --amber:#ffb21e; --green:#2fd36f; --blue:#5aaeff; --grey:#8b949c; --purple:#c58bff;
+  --accent:#e8362e;
+  --fs:17px; --r:10px;
+  color-scheme:dark;
+}
+html.ts-large{--fs:20px} html.ts-huge{--fs:23px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 var(--fs)/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+button,input,select,textarea{font:inherit;color:inherit}
+.num,.mono{font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+#app{min-height:100%;padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+.wrap{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));max-width:1200px;margin:0 auto}
+h1{font-size:1.6em;margin:.3em 0;letter-spacing:-.01em}
+h2{font-size:1.2em;margin:.2em 0 .5em}
+h3{font-size:1em;margin:.8em 0 .4em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:.8em}
+p{margin:.4em 0}
+.muted{color:var(--muted)} .dim{color:var(--dim)} .small{font-size:.85em}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>.grow{flex:1 1 160px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:8px}
+.btn{appearance:none;border:2px solid var(--line);background:var(--panel2);border-radius:var(--r);padding:12px 16px;min-height:50px;font-weight:650;cursor:pointer;text-align:center;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.btn:active{transform:translateY(1px);filter:brightness(1.2)}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.btn.big{min-height:64px;font-size:1.15em;width:100%}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.go{background:#13582f;border-color:var(--green);color:#fff}
+.btn.warn{background:#5a3d00;border-color:var(--amber);color:#fff}
+.btn.danger{background:#5c1210;border-color:var(--red);color:#fff}
+.btn.ghost{background:transparent}
+.btn.sm{min-height:40px;padding:6px 12px;font-size:.9em}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.full{width:100%}
+.chip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--line);background:var(--panel2);border-radius:999px;padding:8px 14px;min-height:44px;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip.amber{border-color:var(--amber);color:var(--amber)} .chip.red{border-color:var(--red);color:var(--red)} .chip.green{border-color:var(--green);color:var(--green)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+label.f{display:block;font-size:.8em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px}
+input[type=text],input[type=number],input[type=datetime-local],input[type=time],input:not([type]),select,textarea{width:100%;background:#0d0f11;border:2px solid var(--line);border-radius:8px;padding:11px 12px;min-height:48px}
+textarea{min-height:90px;resize:vertical}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.badge{display:inline-block;border-radius:6px;padding:2px 8px;font-size:.78em;font-weight:750;letter-spacing:.04em;text-transform:uppercase;border:1px solid currentColor}
+.s-paged{color:var(--grey)} .s-enroute{color:var(--amber)} .s-onscene{color:var(--green)} .s-water{color:var(--amber)} .s-released,.s-left{color:var(--dim)} .s-cancelled{color:var(--dim)} .s-returning{color:var(--blue)} .s-requested{color:var(--amber)} .s-approved{color:var(--blue)} .s-rehab{color:var(--purple)}
+.amber{color:var(--amber)} .red{color:var(--red)} .green{color:var(--green)} .blue{color:var(--blue)}
+.hr{height:1px;background:var(--line);margin:12px 0}
+/* top bar */
+.top{position:sticky;top:0;z-index:20;background:#0b0c0e;border-bottom:3px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+.top .wrap{padding-block:8px}
+.top .t1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.top .name{font-weight:750;font-size:1.05em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .clock{font-weight:800;font-size:1.25em}
+.top .t2{display:flex;gap:10px;flex-wrap:wrap;font-size:.85em;color:var(--muted);margin-top:2px}
+.top .t2 b{color:var(--fg)}
+.event{font-size:1.9em;font-weight:850;letter-spacing:.02em;line-height:1.1}
+/* timer border */
+body.tb-ok #app{box-shadow:inset 0 0 0 6px var(--green)}
+body.tb-soon #app{box-shadow:inset 0 0 0 8px var(--amber)}
+body.tb-over #app{animation:flash 1s steps(2) infinite}
+body.tb-over.acked #app{animation:none;box-shadow:inset 0 0 0 8px var(--red)}
+@keyframes flash{0%{box-shadow:inset 0 0 0 10px var(--red)}50%{box-shadow:inset 0 0 0 10px transparent}}
+@media (prefers-reduced-motion:reduce){body.tb-over #app{animation:none;box-shadow:inset 0 0 0 10px var(--red)}}
+.timerbar{display:flex;align-items:center;gap:10px;justify-content:space-between;border-radius:10px;padding:10px 12px;margin-top:8px;background:var(--panel2);cursor:pointer}
+.timerbar .lab{font-weight:700}
+.timerbar .cd{font-size:1.6em;font-weight:850}
+.timerbar.soon{background:#4d3600} .timerbar.over{background:#5c1210}
+.banner{background:#173a5c;border:2px solid var(--blue);border-radius:10px;padding:10px 12px;margin-top:8px}
+.banner.amber{background:#3d2c00;border-color:var(--amber)}
+/* reminders */
+.rems{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+/* tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tile{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;min-height:96px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile.wide{grid-column:1/-1}
+.tile .tt{font-weight:800;font-size:1.05em;display:flex;justify-content:space-between;gap:6px}
+.tile .ts{color:var(--muted);font-size:.85em;overflow:hidden}
+.tile.alert{border-color:var(--amber)} .tile.bad{border-color:var(--red)}
+@media (min-width:760px){.tiles{grid-template-columns:repeat(4,1fr)}.tile.wide{grid-column:span 2}.tile.xwide{grid-column:1/-1}}
+.app-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;background:var(--panel2);cursor:pointer;margin-top:6px;min-width:0}
+.app-row .nm{font-weight:750;min-width:0;flex:1}
+.app-row .sub{font-size:.82em;color:var(--muted)}
+.dot{width:14px;height:14px;border-radius:50%;flex:none;background:currentColor}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:25;background:#0b0c0e;border-top:2px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.actions .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-block:8px}
+.actions .btn{min-height:54px;padding:6px 4px;font-size:.82em}
+/* sheet */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet .pane{background:var(--bg);width:100%;max-width:760px;max-height:100%;overflow:auto;border-top:3px solid var(--line);border-radius:16px 16px 0 0;padding:14px max(14px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));-webkit-overflow-scrolling:touch}
+.sheet.full .pane{height:100%;border-radius:0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+.sheet .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--bg);padding:6px 0;z-index:2}
+.script{background:#000;border:2px solid var(--fg);border-radius:10px;padding:14px;font-size:1.15em;font-weight:650;line-height:1.4;white-space:pre-wrap}
+.log{font-size:.9em}
+.log .e{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.log .e .tm{color:var(--muted);font-weight:700}
+.log .late{color:var(--amber)}
+.steps{display:flex;gap:4px;margin:6px 0 10px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)} .steps i.on{background:var(--fg)}
+.check{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:var(--panel2);margin-top:6px;cursor:pointer}
+.check .bx{width:28px;height:28px;border-radius:7px;border:2px solid var(--muted);flex:none;display:grid;place-items:center;font-weight:900}
+.check.done .bx{background:var(--green);border-color:var(--green);color:#000}
+.check.miss{outline:2px solid var(--amber)}
+.check.block{outline:2px solid var(--red)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:80;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;max-width:90%;text-align:center}
+.splash{text-align:center;padding:30px 0 10px}
+.splash .logo{font-size:2.6em;font-weight:900;letter-spacing:-.02em}
+.splash .logo span{color:var(--accent)}
+.pinned{background:#2b1a0a;border:2px solid #a85a1a;border-radius:10px;padding:8px 12px;margin-top:8px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.92em}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+pre.out{white-space:pre-wrap;background:#0d0f11;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:.85em;overflow-x:auto}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper .v{min-width:44px;text-align:center;font-size:1.3em;font-weight:800}
+.lockbar{background:#333;border-radius:10px;padding:10px;margin-top:8px}
+
+</style>
+</head>
+<body>
+<div id="app"></div><div id="sheet"></div>
+<script>
+'use strict';
+/* ===== Wordback core: utils, data, storage ===== */
+const APP_VERSION = '1.0.0';
+const APP_UPDATED = '1 Nov 2026';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const now = () => Date.now();
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const pad = n => String(n).padStart(2, '0');
+const fmtT = t => { if (!t) return '--:--'; const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const fmtTS = t => { if (!t) return '--:--:--'; const d = new Date(t); return fmtT(t) + ':' + pad(d.getSeconds()); };
+const fmtD = t => { const d = new Date(t); return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear(); };
+const fmtDT = t => t ? fmtD(t) + ' ' + fmtT(t) : '';
+const fmtDur = ms => { const neg = ms < 0; ms = Math.abs(ms); const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (neg ? '-' : '') + (h ? h + ':' + pad(m) : pad(m)) + ':' + pad(x); };
+const fmtHrs = ms => { const m = Math.round(ms / 60000); return Math.floor(m / 60) + 'h ' + pad(m % 60) + 'm'; };
+const toLocalInput = t => { const d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+const titleCase = s => String(s || '').toLowerCase().replace(/\b([a-z])/g, (m, c) => c.toUpperCase()).replace(/\bAnd\b/g, 'and').replace(/\bOf\b/g, 'of');
+const clone = o => JSON.parse(JSON.stringify(o));
+
+/* ---- Directory seed (D24 R&R 2026-27 + Callum's pager examples) ---- */
+const SEED_BRIGADES = [
+  ['Kiewa','KIEW','Bogong'],['Allans Flat','AFLT','Bogong'],['Beechworth','BECU','Bogong'],['Beechworth Rural','BECR','Bogong'],
+  ['Dederang','DEDE','Bogong'],['Sandy Creek','SCRK','Bogong'],['Stanley','SLEY','Bogong'],['Tawonga','TAWO','Bogong'],
+  ['Wooragee','WGEE','Bogong'],['Yackandandah','YACR','Bogong'],
+  ['Bonegilla','BONA','Wodonga'],['Baranduda','BDUD','Wodonga'],['Leneva','LEVA','Wodonga'],['Wodonga','WODO','Wodonga'],['Wodonga West','WWST','Wodonga'],
+  ['Bethanga','BETH','Tallangatta'],['Eskdale','ESKD','Tallangatta'],['Noorongong','NONG','Tallangatta'],['Old Tallangatta','TALR','Tallangatta'],
+  ['Talgarno','TALG','Tallangatta'],['Tallangatta','TALU','Tallangatta'],
+  ['Kergunyah','KERG',''],['Gundowring','GUND',''],['Mt Beauty','MBTY',''],
+  ['Barnawartha','BAWA',''],['Chiltern','CHIU',''],['Indigo Valley','INDI',''],['Bright','BRIG',''],['Myrtleford','MYRU',''],['Falls Creek','FCRK',''],['Mitta Mitta','MITT',''],['Tallangatta Valley','TVLY',''],['Corryong','CONU',''],['Rutherglen','RUTR',''],['Porepunkah','PORE',''],['Harrietville','HARV',''],['Mudgegona','MUDG',''],['Gapsted','GAPS',''],['Ovens-Eurobin','OEUR',''],['Rosewhite','RWHT',''],['Buffalo River','BUFR',''],['Browns Plains','BPLN',''],['Wahgunyah','WAHG',''],['Carlyle','CYLE',''],['Cornishtown','CORT',''],['Norong','NORO',''],['Dartmouth','DMTH',''],['Granya','GYRA',''],['Bullioh','BIOH',''],['Berringama','BGAM',''],['Cudgewa','CUWA',''],['Walwa','WALW',''],['Tintaldra','TINT',''],['Burrowye','BWYE',''],['Biggara','BIGG',''],['Nariel Valley','NARI',''],['Mt Hotham-Dinner Plain','MHDP','']
+].map(([name, code, group]) => ({ name, code, group, control: name + ' Control' }));
+
+const SEED_DIRECTORY = [
+  ['Kiewa Tanker 1','KIEWT1','Kiewa'],['Kiewa Tanker 2','KIEWT2','Kiewa'],['Kiewa Ultralight','','Kiewa'],
+  ['Bogong Group FCV 1','','Bogong Group'],['Bogong Group FCV 2','','Bogong Group'],
+  ['Allans Flat Tanker 1','AFLTT1','Allans Flat'],['Allans Flat Ultralight','','Allans Flat'],
+  ['Wodonga Tanker 1','WODOT1','Wodonga'],['Wodonga Group FCV','','Wodonga Group'],
+  ['FRV Wodonga Pumper (P76B)','P76B','FRV Station 76'],['FRV Wodonga Pumper (P76A)','P76A','FRV Station 76'],
+  ['Beechworth Rural Light Tanker','','Beechworth Rural'],['Dederang Ultralight','','Dederang'],['Sandy Creek Ultralight','','Sandy Creek'],
+  ['Stanley Ultralight','','Stanley'],['Tawonga Light Tanker','','Tawonga'],['Wooragee Light Tanker','','Wooragee'],['Wooragee Ultralight','','Wooragee'],
+  ['Yackandandah Light Tanker','','Yackandandah'],['Yackandandah Ultralight','','Yackandandah'],['Yackandandah Pumper Tanker','','Yackandandah'],
+  ['Baranduda Ultralight','','Baranduda'],['Wodonga West Light Tanker','','Wodonga West'],['Eskdale Ultralight','','Eskdale'],
+  ['Old Tallangatta Ultralight','','Old Tallangatta'],['Talgarno Ultralight','','Talgarno'],['Tallangatta Tanker','','Tallangatta'],
+  ['Tallangatta Ultralight','','Tallangatta'],['Tallangatta Pumper Tanker','','Tallangatta'],['Tallangatta Group FCV','','Tallangatta Group'],
+  ['Kergunyah Tanker','','Kergunyah'],['Gundowring Ultralight','','Gundowring']
+].map(([callsign, code, brigade]) => ({ callsign, code, brigade }));
+
+const DEFAULT_SETTINGS = {
+  name: '', rank: '2nd Lt', brigade: 'Kiewa', homeCode: 'CKIEW',
+  myAppliances: ['Kiewa Tanker 1', 'Kiewa Tanker 2', 'Kiewa Ultralight'], defaultAppliance: 'Kiewa Tanker 1',
+  defaultFg: '353', fgList: ['353', '352', '354', '471'],
+  directory: SEED_DIRECTORY, brigades: SEED_BRIGADES,
+  wbMin: 10, sitrepFirst: 5, sitrepRepeat: 15, rehabWork: 20, rehabLen: 20, rehabRest: 10,
+  sound: true, vibrate: true, keepAwake: true, textSize: 'normal'
+};
+
+/* ---- Call types ---- */
+const CALL_TYPES = {
+  'G&SC': { label: 'Grass and scrub fire', wb: 'Grass and scrub fire', fam: 'gs', fire: true },
+  'STRUC': { label: 'Structure fire', wb: 'Structure fire', fam: 'struc', fire: true },
+  'NOSTC': { label: 'Non-structure fire', wb: 'Non-structure fire', fam: 'nostc', fire: true },
+  'RESCC': { label: 'Rescue', wb: 'Incident', fam: 'resc', fire: false },
+  'INCIC': { label: 'Incident', wb: 'Incident', fam: 'inc', fire: false }
+};
+const KINDS = {
+  INCIC: [['MVA / car accident', /\b(MVA|RAR|COLLISION|ACCIDENT|CRASH|VEHICLE|CAR)\b/], ['Alarm (AFA / private)', /\b(ALARM|AFA|PRIVATE)\b/], ['Gas leak', /\bGAS\b/], ['Hazmat / fuel spill', /\b(HAZMAT|SPILL|DIESEL|FUEL|PETROL|OIL|CHEMICAL)\b/], ['Tree down / storm', /\b(TREE|STORM|BRANCH)\b/], ['Powerlines down', /\b(POWER|POWERLINE|POWERLINES|WIRES|LINES)\b/], ['Assist agency (AV / police / SES)', /\b(ASSIST|AV|AMBULANCE|POLICE|SES)\b/], ['Smoke investigation', /\bSMOKE\b/], ['Flooding / wash away', /\b(FLOOD|FLOODING|WASHAWAY|WASH)\b/], ['Animal rescue', /\b(ANIMAL|COW|HORSE|DOG|CAT|SHEEP|LIVESTOCK)\b/], ['Other', null]],
+  NOSTC: [['Car / vehicle fire', /\b(CAR|VEHICLE|TRUCK|UTE)\b/], ['MVA with fire', /\b(MVA|COLLISION|ACCIDENT)\b/], ['Rubbish / bin fire', /\b(RUBBISH|BIN|SKIP|PILE)\b/], ['Machinery fire', /\b(MACHINERY|TRACTOR|HEADER|HARVESTER|SLASHER)\b/], ['Other', null]],
+  RESCC: [['Road accident (RAR)', /\b(RAR|MVA|ROAD|COLLISION|ACCIDENT)\b/], ['Trapped person', /\b(TRAPPED|PERSON|PERSONS)\b/], ['Animal', /\b(ANIMAL|COW|HORSE|DOG|LIVESTOCK)\b/], ['Other', null]]
+};
+// family drives tactics, sitrep picks, wrap-up
+function famOf(inc) {
+  const ct = CALL_TYPES[inc.p.code] || CALL_TYPES.INCIC;
+  if (/MVA|Road accident/.test(inc.kind || '')) return 'mva';
+  if (/vehicle fire|Machinery/i.test(inc.kind || '')) return 'veh';
+  if (/Alarm/.test(inc.kind || '')) return 'alarm';
+  if (/Hazmat|Gas/.test(inc.kind || '')) return 'hazmat';
+  return ct.fam;
+}
+function isFire(inc) { const ct = CALL_TYPES[inc.p.code]; return !!(ct && ct.fire); }
+function wbType(inc) { if (inc.p.code === 'STRUC' && /alarm/i.test(inc.kind || '')) return 'Structure fire'; return (CALL_TYPES[inc.p.code] || CALL_TYPES.INCIC).wb; }
+
+/* ---- Storage: IndexedDB with localStorage fallback ---- */
+const DB = {
+  db: null, mode: 'idb',
+  open() {
+    return new Promise(res => {
+      try {
+        const r = indexedDB.open('wordback', 1);
+        r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('incidents')) d.createObjectStore('incidents', { keyPath: 'id' }); if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv', { keyPath: 'k' }); };
+        r.onsuccess = () => { this.db = r.result; res(); };
+        r.onerror = () => { this.mode = 'ls'; res(); };
+      } catch (e) { this.mode = 'ls'; res(); }
+    });
+  },
+  tx(store, mode) { return this.db.transaction(store, mode).objectStore(store); },
+  put(store, obj) {
+    if (this.mode === 'ls') { try { const all = JSON.parse(localStorage.getItem('wb_' + store) || '{}'); all[obj.id || obj.k] = obj; localStorage.setItem('wb_' + store, JSON.stringify(all)); } catch (e) {} return Promise.resolve(); }
+    return new Promise(res => { try { const r = this.tx(store, 'readwrite').put(obj); r.onsuccess = r.onerror = () => res(); } catch (e) { res(); } });
+  },
+  del(store, id) {
+    if (this.mode === 'ls') { try { const all = JSON.parse(localStorage.getItem('wb_' + store) || '{}'); delete all[id]; localStorage.setItem('wb_' + store, JSON.stringify(all)); } catch (e) {} return Promise.resolve(); }
+    return new Promise(res => { try { const r = this.tx(store, 'readwrite').delete(id); r.onsuccess = r.onerror = () => res(); } catch (e) { res(); } });
+  },
+  all(store) {
+    if (this.mode === 'ls') { try { return Promise.resolve(Object.values(JSON.parse(localStorage.getItem('wb_' + store) || '{}'))); } catch (e) { return Promise.resolve([]); } }
+    return new Promise(res => { try { const r = this.tx(store, 'readonly').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); } catch (e) { res([]); } });
+  },
+  clear() {
+    if (this.mode === 'ls') { try { localStorage.removeItem('wb_incidents'); localStorage.removeItem('wb_kv'); } catch (e) {} return Promise.resolve(); }
+    return Promise.all(['incidents', 'kv'].map(s => new Promise(res => { try { const r = this.tx(s, 'readwrite').clear(); r.onsuccess = r.onerror = () => res(); } catch (e) { res(); } })));
+  }
+};
+
+/* ---- App state ---- */
+const S = { settings: clone(DEFAULT_SETTINGS), incidents: [], cur: null, screen: 'home', sheet: null, sheetStack: [], wiz: null, ui: {} };
+let saveTimer = null;
+function saveInc(inc) { inc = inc || S.cur; if (!inc) return; inc.updated = now(); DB.put('incidents', clone(inc)); }
+function saveSettings() { DB.put('kv', { k: 'settings', v: S.settings }); }
+function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { saveInc(); }, 250); }
+
+function logE(text, opts) {
+  const inc = S.cur; if (!inc) return;
+  const e = { t: (opts && opts.t) || now(), text };
+  if (inc.locked) e.late = true;
+  if (inc.handover && inc.handover.doneAt && !inc.locked) e.post = true;
+  inc.log.push(e);
+}
+function toast(msg) {
+  let el = $('#toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 2200);
+}
+
+/* ===== Pager decoding ===== */
+const ROAD_SFX = /^(RD|ROAD|HWY|HIGHWAY|ST|STREET|LANE|LN|AVE|AV|AVENUE|CT|COURT|DR|DRIVE|TRK|TRACK|TCE|PDE|CRES|CR|PL|WAY|BVD|BLVD|TRL|GR|GROVE|CL|CLOSE|FWY|PKWY|RISE|SQ|CIRC|ESP|GAP)$/;
+function parsePager(raw) {
+  const out = { raw: raw.trim(), type: '', area: '', areaCode: '', resp: '', code: '', codeRaw: '', details: '', address: '', cross: [], suburb: '', map: '', grid: '', services: 'F', paged: [], incNo: '', ok: false };
+  let txt = raw.replace(/\s+/g, ' ').trim().toUpperCase();
+  if (!txt) return out;
+  // incident number at end
+  let m = txt.match(/\s([A-Z]\d{8,10})\s*$/); if (m) { out.incNo = m[1]; txt = txt.slice(0, m.index); }
+  const tk = txt.split(' ');
+  let i = 0;
+  if (/^(ALERT|NON-?EMERG|NONEMERG|ADMIN|EMERG)/.test(tk[0])) { out.type = tk[0]; i = 1; }
+  m = (tk[i] || '').match(/^([A-Z]{3,5})(\d)$/); if (m) { out.areaCode = m[1]; out.area = tk[i]; i++; }
+  m = (tk[i] || '').match(/^([A-Z&]+?)([13])$/); if (m) { out.code = m[1]; out.resp = m[2]; out.codeRaw = tk[i]; i++; }
+  // map book: SVNE etc, then page, grid square, (grid)
+  let mb = -1; for (let j = i; j < tk.length; j++) { if (/^(SV[A-Z]{1,3}|MEL|VCMB)$/.test(tk[j]) && /^\d{3,4}[A-Z]?$/.test(tk[j + 1] || '')) { mb = j; break; } }
+  let body = tk.slice(i, mb < 0 ? tk.length : mb);
+  let rest = mb < 0 ? [] : tk.slice(mb);
+  if (mb >= 0) {
+    out.map = rest.slice(0, 3).join(' '); let k = 3;
+    if (/^\(\d{6}\)$/.test(rest[3] || '')) { out.grid = rest[3].slice(1, -1); k = 4; }
+    rest = rest.slice(k);
+    if (rest[0] && /^[FPAR]{1,4}$/.test(rest[0])) { out.services = rest[0]; rest = rest.slice(1); }
+    out.paged = rest.filter(Boolean);
+  }
+  // split details / address
+  let a = -1;
+  for (let j = 0; j < body.length; j++) { if (/^(\d+[A-Z]?(-\d+)?|CNR|LOT|OPP|NEAR|CORNER)$/.test(body[j]) && j > 0) { a = j; break; } }
+  if (a < 0) { for (let j = 0; j < body.length; j++) { if (ROAD_SFX.test(body[j])) { a = Math.max(0, j - 2); break; } } }
+  if (a < 0) a = body.length;
+  out.details = body.slice(0, a).join(' ').replace(/\s*-\s*$/, '');
+  const addr = body.slice(a).join(' ');
+  const parts = addr.split(/\s*\/\/?\s*/).map(s => s.trim()).filter(Boolean);
+  out.address = parts[0] || '';
+  if (/^CNR\s/.test(out.address)) { out.cross = parts.slice(1); }
+  else out.cross = parts.slice(1);
+  // suburb = words after first road suffix in main address
+  const at = out.address.split(' ');
+  for (let j = 0; j < at.length; j++) if (ROAD_SFX.test(at[j])) { out.suburb = at.slice(j + 1).join(' '); break; }
+  out.ok = !!(out.code || out.details);
+  return out;
+}
+function brigadeByCode(code) { return S.settings.brigades.find(b => b.code === code); }
+function dirByCode(code) { return S.settings.directory.find(d => d.code && d.code === code); }
+// turn paged tokens into appliance entries
+function pagedToAppliances(p, mine) {
+  const list = [];
+  for (const t of p.paged) {
+    if (t === S.settings.homeCode) continue; // my brigade: my appliance added separately
+    const d = dirByCode(t);
+    if (d) { if (d.callsign !== mine) list.push({ callsign: d.callsign, code: t }); continue; }
+    if (/^P\d{2}[A-Z]?$/.test(t)) { list.push({ callsign: 'FRV ' + t, code: t, frv: true }); continue; }
+    const bm = t.match(/^C([A-Z]{4})$/); if (bm) { const b = brigadeByCode(bm[1]); list.push({ callsign: b ? b.name + ' (brigade)' : t, code: t, brigadeOnly: true }); continue; }
+    const am = t.match(/^([A-Z]{4})([TPU]\w*)$/); if (am) { const b = brigadeByCode(am[1]); list.push({ callsign: b ? b.name + ' ' + (am[2][0] === 'T' ? 'Tanker ' : am[2][0] === 'P' ? 'Pumper ' : 'Ultralight ') + am[2].slice(1) : t, code: t }); continue; }
+    list.push({ callsign: t, code: t });
+  }
+  return list;
+}
+function pickKind(code, details) {
+  const list = KINDS[code]; if (!list) return '';
+  for (const [k, re] of list) if (re && re.test(details)) return k;
+  return 'Other';
+}
+function niceName(p) {
+  const det = titleCase(p.details || (CALL_TYPES[p.code] || {}).label || 'Incident');
+  const road = roadName(p);
+  return det + (road ? ', ' + titleCase(road) : '');
+}
+function roadName(p) {
+  const a = (p.address || '').replace(/^(CNR|LOT\s+\d+|\d+[A-Z]?(-\d+)?)\s+/, '');
+  const w = a.split(' '); for (let j = 0; j < w.length; j++) if (ROAD_SFX.test(w[j])) return w.slice(0, j + 1).join(' ');
+  return a;
+}
+
+/* ===== Incident model and logic ===== */
+const ST_LABEL = { paged: 'Paged', enroute: 'En route', onscene: 'On scene', water: 'Out for water', released: 'Released', cancelled: 'Cancelled en route', returning: 'Returning', rehab: 'Crew in rehab' };
+const AG_ST = { requested: 'Requested', onscene: 'On scene', left: 'Left scene' };
+const CON_ST = { requested: 'Requested', approved: 'DDO approved', onscene: 'On scene', left: 'Left scene' };
+const AGENCIES = [['Police', '5-6'], ['Ambulance (AV)', ''], ['SES', ''], ['Power company', ''], ['Gas company', ''], ['Council', ''], ['DTP / VicRoads', ''], ['FFMVic', ''], ['EPA', ''], ['Water authority', '']];
+const HAZARDS = ['Traffic', 'Tree fall zone', 'Power lines', 'Gas', 'Smoke over road', 'Fuel / chemical spill', 'Asbestos', 'Unstable structure', 'Livestock / animals', 'Steep / uneven ground', 'Hollow trees / falling limbs', 'Water / flooding', 'Sharp edges / glass', 'Airbags / SRS', 'Batteries / EV', 'Members of public'];
+
+function newIncident(myApp) {
+  const t = now();
+  return {
+    id: uid(), created: t, updated: t, status: 'active', mode: 'control', locked: false,
+    myApp, pageTime: t, p: {}, kind: '', name: '', controlName: '', cp: { type: 'static', loc: '' },
+    fg: { state: 'confirmed', ch: S.settings.defaultFg }, onSceneAt: null,
+    apps: [], agencies: [], contractors: [], roads: [], hazards: [], tactics: [], tacticNotes: {},
+    ba: { control: false, who: '', ch: '', pattern: '', teams: [], rit: '' },
+    wordbacks: [], sitreps: [], messages: [], calls: [], conditions: {}, origin: '', notes: '',
+    sitrepDue: null, timersStopped: false, ack: 0, remind: [], unreported: [],
+    underControlAt: null, stopAt: null, stopVariant: '', handover: null, afterNotes: '',
+    wrap: {}, summary: { injuries: 'None', medium: [] }, exportedAt: null, firsDone: false, log: []
+  };
+}
+function appByName(inc, n) { return inc.apps.find(a => a.callsign === n); }
+function myApp(inc) { return inc.apps.find(a => a.mine); }
+function addApp(inc, o, status) {
+  const a = { id: uid(), callsign: o.callsign, code: o.code || '', frv: !!o.frv || /^P\d/.test(o.code || ''), brigadeOnly: !!o.brigadeOnly, mine: !!o.mine, status: status || 'paged', hist: [{ t: now(), s: status || 'paged' }], crew: '', oic: '', task: null, tasks: [], onSince: null, rehabDue: null };
+  inc.apps.push(a); return a;
+}
+function setAppStatus(inc, a, s, opts) {
+  const prev = a.status; if (prev === s) return;
+  const t = now(); a.status = s; a.hist.push({ t, s });
+  const plain = { paged: 'paged', enroute: 'en route', onscene: 'on scene', water: 'out for water', released: 'released from scene', cancelled: 'cancelled en route', returning: 'returning', rehab: 'crew to rehab' }[s];
+  if (s === 'enroute' && a.mine) logE(a.callsign + ' turning out');
+  else if (s === 'onscene' && prev === 'water') logE(a.callsign + ' back on scene');
+  else if (s === 'onscene' && prev === 'rehab') logE(a.callsign + ' crew back from rehab');
+  else logE(a.callsign + ' ' + plain);
+  if (s === 'onscene' && prev === 'rehab') { a.rehabDue = t + S.settings.rehabWork * 60000; a.rehabBack = null; }
+  if (s === 'onscene' && prev !== 'water' && prev !== 'rehab') { a.onSince = t; a.rehabDue = t + S.settings.rehabWork * 60000; if (!a.mine && !(opts && opts.noReport) && inc.mode === 'control' && inc.onSceneAt) inc.unreported.push(a.id); }
+  if (s === 'rehab') { a.rehabBack = t + ((S.settings.rehabLen || 20) + S.settings.rehabRest) * 60000; }
+  if (s === 'released' || s === 'cancelled' || s === 'returning') { inc.unreported = inc.unreported.filter(x => x !== a.id); }
+}
+function counts(inc) {
+  const c = { onscene: 0, enroute: 0, paged: 0, water: 0 };
+  inc.apps.forEach(a => { if (a.status === 'onscene' || a.status === 'rehab') c.onscene++; else if (c[a.status] != null) c[a.status]++; });
+  return c;
+}
+function countsText(inc) { const c = counts(inc); const p = []; if (c.onscene) p.push(c.onscene + ' on scene'); if (c.enroute) p.push(c.enroute + ' en route'); if (c.water) p.push(c.water + ' out for water'); if (c.paged) p.push(c.paged + ' paged'); return p.join(', ') || 'None yet'; }
+function controlLabel(inc) { return inc.controlName || (inc.myApp || 'Kiewa Tanker 1'); }
+function baInside(inc) { return inc.ba.teams.filter(t => t.in && !t.out); }
+function contractorsOpen(inc) { return inc.contractors.filter(c => c.status === 'onscene' || (c.runs || []).some(r => !r.end)); }
+function areaBrigade(inc) { return brigadeByCode(inc.p.areaCode || ''); }
+function defaultControl(inc) { const b = areaBrigade(inc); return b ? b.control : (S.settings.brigade + ' Control'); }
+function roadControl(inc) { const r = roadName(inc.p || {}); const w = titleCase(r).split(' ')[0]; return w ? w + ' Control' : ''; }
+
+/* ---- timers ---- */
+function dueInfo(inc) {
+  if (!inc || inc.timersStopped || inc.mode !== 'control' || !inc.onSceneAt || inc.status !== 'active') return null;
+  if (!inc.wordbacks.length) return { kind: 'wordback', label: 'Wordback due', due: inc.onSceneAt + S.settings.wbMin * 60000 };
+  if (inc.sitrepDue) return { kind: 'sitrep', label: inc.sitreps.length ? 'Next sitrep' : 'First sitrep', due: inc.sitrepDue };
+  return null;
+}
+function reminders(inc) {
+  const r = [];
+  if (!inc || inc.status !== 'active') return r;
+  const t = now();
+  if (inc.mode === 'control' && !inc.timersStopped) inc.apps.forEach(a => { if ((a.status === 'onscene') && a.rehabDue && t >= a.rehabDue && !a.brigadeOnly) r.push({ k: 'rehab', id: a.id, text: a.callsign + ' crew due rehab', cls: 'amber' }); });
+  inc.apps.forEach(a => { if (a.status === 'rehab' && a.rehabBack && t >= a.rehabBack) r.push({ k: 'rehabback', id: a.id, text: a.callsign + ' rehab done?', cls: 'green' }); });
+  if (inc.unreported.length && inc.mode === 'control') r.push({ k: 'arrivals', text: inc.unreported.length + ' arrival' + (inc.unreported.length > 1 ? 's' : '') + ' not told to FireCom', cls: 'amber' });
+  inc.remind.forEach(x => r.push({ k: 'msg', id: x.id, text: x.text, cls: 'amber' }));
+  if (inc.mode === 'control' && baInside(inc).length && !inc.ba.rit) r.push({ k: 'rit', text: 'RIT not logged', cls: 'red' });
+  const ab = areaBrigade(inc);
+  if (inc.mode === 'control' && ab && ab.code !== S.settings.homeCode.replace(/^C/, '') && !inc.handover) {
+    const on = inc.apps.find(a => a.status === 'onscene' && (a.callsign.indexOf(ab.name) === 0));
+    if (on && !inc.hoDismissed) r.push({ k: 'handover', text: ab.name + ' on scene. Hand over control?', cls: 'green' });
+  }
+  return r;
+}
+
+/* ---- scripts (radio codes) and plain-English log ---- */
+function fgPhrase(inc) {
+  if (inc.fg.state === 'notneeded') return '';
+  if (inc.fg.state === 'na') return ' Fireground channel not available.';
+  return ' Fireground ' + inc.fg.ch + '.';
+}
+function onSceneScript(inc) { return 'FireCom, ' + inc.myApp + ', on scene, now known as ' + controlLabel(inc) + '.' + fgPhrase(inc); }
+const RES = [
+  { k: 'police', label: 'Police (5-6)', radio: '5-6', plain: 'police (non-urgent)', agency: 'Police' },
+  { k: 'police40', label: 'Police URGENT (4-0)', radio: '4-0', plain: 'police URGENT', agency: 'Police' },
+  { k: 'av', label: 'Ambulance', radio: 'Ambulance', plain: 'ambulance', agency: 'Ambulance (AV)' },
+  { k: 'rescue', label: 'Rescue', radio: 'Rescue', plain: 'rescue' },
+  { k: 'tankers', label: 'More tankers', radio: 'make tankers', plain: 'more tankers' },
+  { k: 'hotday', label: 'Hot Day (make tankers 5)', radio: 'make tankers 5', plain: 'Hot Day response, make tankers 5' },
+  { k: 'ba', label: 'BA support', radio: 'BA support', plain: 'BA support' },
+  { k: 'air', label: 'Aircraft', radio: 'aircraft', plain: 'aircraft' },
+  { k: 'frv', label: 'FRV', radio: 'FRV', plain: 'FRV' },
+  { k: 'pa', label: 'Check P and A notified', radio: 'confirm police and ambulance notified', plain: 'confirm police and ambulance notified' },
+  { k: 'power', label: 'Power company', radio: 'power company', plain: 'power company', agency: 'Power company' },
+  { k: 'contractor', label: 'Contractor / machinery', radio: 'contractor', plain: 'contractor', contractor: true }
+];
+function wbScript(inc, d) {
+  const st = WB_STATUS[d.status] || {};
+  let s = 'FireCom, ' + controlLabel(inc) + ', wordback. ' + (d.status === 'falsealarm' ? 'False alarm' : wbType(inc)) + (d.desc ? ', ' + d.desc : '') + ', ' + (st.radio || '') + '.';
+  const req = (d.res || []).map(k => { const r = RES.find(x => x.k === k); if (!r) return ''; if (k === 'tankers') return 'make tankers ' + (d.tankers || 2); if (k === 'contractor') return 'contractor' + (d.contractorType ? ' (' + d.contractorType.toLowerCase() + ')' : ''); return r.radio; }).filter(Boolean);
+  if (req.length) s += ' Request ' + req.join(', ') + '.';
+  if (d.extra) s += ' ' + d.extra.trim();
+  return s;
+}
+const WB_STATUS = {
+  investigating: { label: 'Investigating', radio: 'investigating', plain: 'Investigating' },
+  nyuc: { label: 'Not yet under control', radio: 'not yet under control', plain: 'Not yet under control' },
+  uc: { label: 'Under control', radio: 'under control', plain: 'Under control' },
+  stop: { label: 'Stop', radio: 'stop', plain: 'Stop' },
+  falsealarm: { label: 'False alarm (Stop)', radio: 'stop', plain: 'False alarm, stop' },
+  noaction: { label: 'No action (Stop)', radio: 'no action required, stop', plain: 'No action required, stop' }
+};
+function lastWbStatus(inc) { const w = inc.wordbacks[inc.wordbacks.length - 1]; return w ? w.status : ''; }
+
+const TASKS = {
+  attack: 'Fire attack', pump: 'Primary pump / water supply', boost: 'Water boosting / hydrant changeover', transport: 'Water transport', ba: 'BA crews',
+  standby: 'Standby / post up', asset: 'Asset protection', assetassist: 'Asset protection assist', monitor: 'Monitoring / blacking out', mopup: 'Mop up', rehab: 'Rehab', road: 'Road position', other: 'Other'
+};
+const ATTACK_SUB = {
+  struc: ['Offensive internal', 'Defensive external', 'Exposure protection', 'Ventilation'],
+  gs: ['Direct head', 'Flank left', 'Flank right', 'Rear / anchor point', 'Parallel', 'Patrol', 'Defensive'],
+  veh: ['Attack', 'Fuel spill / foam'], mva: ['Attack', 'Fuel spill / foam'], nostc: ['Attack', 'Fuel spill / foam', 'Defensive'],
+  more: ['Direct attack', 'Indirect attack', 'Defensive', 'Exposure protection', 'Containment', 'Overhaul']
+};
+function taskText(t) { if (!t) return ''; let s = TASKS[t.type] || t.type; if (t.sub) s += ': ' + t.sub; if (t.loc) s += ' @ ' + t.loc; if (t.target) s += ' [' + t.target + ']'; if (t.lines) s += ' (' + t.lines + ' line' + (t.lines > 1 ? 's' : '') + ')'; return s; }
+
+const TACTICS = {
+  struc: ['Size-up / 360 done', 'Power isolated', 'Gas isolated', 'Water supply established', 'External attack', 'Internal attack', 'Primary search', 'Secondary search', 'No one inside', 'Ventilation', 'Exposures protected', 'Salvage / overhaul', 'Atmospheric monitoring'],
+  gs: ['Anchor point established', 'Flank left', 'Flank right', 'Direct head attack', 'Parallel attack', 'Defensive / asset protection', 'Edge blacked out', 'Patrol arranged', 'Spot fires checked', 'Landholder contacted'],
+  veh: ['Vehicle stabilised', 'Battery isolated', 'Fire knocked down', 'Fuel leak contained', 'Foam applied', 'Occupants accounted for', 'Run-off contained'],
+  mva: ['Scene safe / traffic managed', 'Vehicle(s) stabilised', 'Battery isolated', 'Fuel leak contained', 'Patients accounted for', 'Fire protection line', 'Hand over to rescue / AV'],
+  alarm: ['Panel checked', 'Zone identified', 'Area searched', 'Cause found', 'Alarm reset', 'Owner / keyholder contacted'],
+  hazmat: ['Upwind / uphill approach', 'Exclusion zone set', 'Source identified', 'Leak isolated', 'Spill contained', 'EPA / authority notified', 'Decon set up'],
+  resc: ['Scene safe', 'Patient(s) accounted for', 'Stabilisation', 'Access gained', 'Hand over to rescue / AV'],
+  inc: ['Scene safe', 'Hazard identified', 'Area cordoned', 'Hazard made safe', 'Relevant authority notified'],
+  nostc: ['Scene safe', 'Fire knocked down', 'Exposures protected', 'Run-off contained', 'Overhaul complete']
+};
+
+/* ===== Rendering: screens ===== */
+function render() {
+  const app = $('#app');
+  const fn = SCREENS[S.screen] || SCREENS.home;
+  app.innerHTML = fn();
+  renderSheet();
+  tick(true);
+}
+function renderSheet() {
+  let host = $('#sheet');
+  if (!S.sheet) { host.innerHTML = ''; document.body.style.overflow = ''; return; }
+  const def = SHEETS[S.sheet.type];
+  if (!def) { S.sheet = null; host.innerHTML = ''; return; }
+  const keep = host.querySelector('.pane'); const st = keep && host.dataset.type === S.sheet.type ? keep.scrollTop : 0;
+  host.dataset.type = S.sheet.type;
+  host.innerHTML = '<div class="sheet' + (def.full ? ' full' : '') + '" data-a="sheetBg"><div class="pane" role="dialog" aria-modal="true">' + (typeof def === 'function' ? def(S.sheet) : def.html(S.sheet)) + '</div></div>';
+  const p = host.querySelector('.pane'); if (p) p.scrollTop = st;
+  document.body.style.overflow = 'hidden';
+}
+function sheetHd(title, back) {
+  return '<div class="hd"><h2 style="margin:0">' + esc(title) + '</h2><button class="btn sm ghost" data-a="' + (back ? 'sheetBack' : 'closeSheet') + '">' + (back ? 'Back' : 'Close') + '</button></div>';
+}
+function chip(label, on, act, data, cls) {
+  let d = ''; for (const k in (data || {})) d += ' data-' + k + '="' + esc(data[k]) + '"';
+  return '<button class="chip' + (on ? ' on' : '') + (cls ? ' ' + cls : '') + '" data-a="' + act + '"' + d + '>' + esc(label) + '</button>';
+}
+function btn(label, act, cls, data) {
+  let d = ''; for (const k in (data || {})) d += ' data-' + k + '="' + esc(data[k]) + '"';
+  return '<button class="btn ' + (cls || '') + '" data-a="' + act + '"' + d + '>' + label + '</button>';
+}
+function inp(bind, val, ph, type, extra) { return '<input ' + (type ? 'type="' + type + '" ' : 'type="text" ') + 'id="f_' + esc(bind.replace(/[^\w]/g, '_')) + '" data-bind="' + esc(bind) + '" value="' + esc(val) + '" placeholder="' + esc(ph || '') + '" ' + (extra || '') + '>'; }
+function ta(bind, val, ph) { return '<textarea id="f_' + esc(bind.replace(/[^\w]/g, '_')) + '" data-bind="' + esc(bind) + '" placeholder="' + esc(ph || '') + '">' + esc(val) + '</textarea>'; }
+function script(text) { return '<div class="script" id="scr">' + esc(text) + '</div>'; }
+
+const SCREENS = {};
+/* ---------- Home ---------- */
+SCREENS.home = () => {
+  const act = S.incidents.filter(i => i.status === 'active').sort((a, b) => b.updated - a.updated);
+  const cont = S.incidents.filter(i => i.status === 'continue');
+  const past = S.incidents.filter(i => i.status === 'closed').sort((a, b) => b.created - a.created);
+  let h = '<div class="wrap" style="padding-top:calc(10px + env(safe-area-inset-top,0px))">';
+  h += '<div class="splash"><div class="logo">Word<span>back</span></div><div class="muted">Incident Management Dashboard</div></div>';
+  if (act.length) {
+    h += '<h3>Active</h3><div class="stack">';
+    act.forEach(i => { h += '<button class="btn big go" data-a="openInc" data-id="' + i.id + '" style="text-align:left">Resume: ' + esc(i.name || 'Untitled incident') + '<div class="small" style="font-weight:500">' + esc(controlLabel(i)) + ' · paged ' + fmtDT(i.pageTime) + '</div></button>'; });
+    h += '</div>';
+  }
+  if (cont.length) { h += '<h3>Not closed out</h3><div class="chips">'; cont.forEach(i => { h += chip('Not closed out: ' + (i.name || 'Incident'), false, 'openInc', { id: i.id }, 'amber'); }); h += '</div>'; }
+  h += '<div style="margin-top:16px">' + btn('+ New incident', 'newInc', 'big pri') + '</div>';
+  h += '<h3>Past incidents</h3>';
+  if (!past.length) h += '<p class="dim">Closed jobs land here so you can do FIRS later.</p>';
+  past.slice(0, 40).forEach(i => {
+    h += '<div class="app-row" data-a="openPast" data-id="' + i.id + '"><div class="nm">' + esc(i.name || 'Incident') + '<div class="sub">' + fmtDT(i.pageTime) + ' · ' + esc(i.p.incNo || '') + '</div></div>' + (i.firsDone ? '<span class="badge green">FIRS done</span>' : '<span class="badge amber">To do: FIRS</span>') + '</div>';
+  });
+  h += '<div class="row" style="margin-top:18px">' + btn('Settings', 'goSettings', 'grow') + btn('Back up all jobs', 'backupAll', 'grow') + '</div>';
+  h += '<p class="dim small" style="margin-top:14px">Wordback v' + APP_VERSION + ' · data saved on this device only · ' + (DB.mode === 'idb' ? 'autosave on' : 'autosave (fallback storage)') + '</p>';
+  return h + '</div>';
+};
+
+/* ---------- New incident wizard ---------- */
+SCREENS.wiz = () => {
+  const w = S.wiz, inc = S.cur, st = w.step;
+  const needKind = !!KINDS[inc.p.code];
+  const total = 5;
+  let h = '<div class="wrap" style="padding-top:calc(12px + env(safe-area-inset-top,0px))"><div class="row" style="justify-content:space-between">' + btn('Cancel', 'wizCancel', 'sm ghost') + '<span class="muted">Step ' + st + ' of ' + total + '</span></div>';
+  h += '<div class="steps">' + [1, 2, 3, 4, 5].map(n => '<i class="' + (n <= st ? 'on' : '') + '"></i>').join('') + '</div>';
+  if (st === 1) {
+    h += '<h1>Which appliance are you on?</h1><div class="stack">';
+    S.settings.myAppliances.forEach(a => { h += '<button class="btn big ' + (inc.myApp === a ? 'pri' : '') + '" data-a="wizApp" data-v="' + esc(a) + '">' + esc(a) + '</button>'; });
+    h += '</div><label class="f">Other</label>' + inp('myApp', inc.myApp, 'Callsign');
+    h += '<div style="margin-top:16px">' + btn('Next', 'wizNext', 'big go') + '</div>';
+  } else if (st === 2) {
+    h += '<h1>Paste the pager message</h1><p class="muted">Long-press in the box and Paste, or tap the paste button.</p>';
+    h += '<textarea id="pager" class="mono" style="min-height:150px" placeholder="ALERT BONA3 G&amp;SC1 TREE FIRE SPREADING ...">' + esc(w.raw || '') + '</textarea>';
+    h += '<div class="row" style="margin-top:10px">' + btn('Paste from clipboard', 'wizPaste', 'grow') + btn('Decode', 'wizDecode', 'grow go') + '</div>';
+    h += '<div style="margin-top:12px">' + btn('No pager message, enter by hand', 'wizSkipPager', 'full ghost') + '</div>';
+  } else if (st === 3) {
+    const p = inc.p;
+    h += '<h1>Check the details</h1><p class="muted">The split between job details and address is a guess. Fix anything that looks off.</p>';
+    h += '<label class="f">Page time</label><input type="datetime-local" step="1" id="pageTime" data-a2="pageTime" value="' + toLocalInput(inc.pageTime) + '">';
+    h += '<div class="row" style="margin-top:6px">' + btn('-1 min', 'pageAdj', 'sm', { v: -1 }) + btn('-2 min', 'pageAdj', 'sm', { v: -2 }) + btn('-5 min', 'pageAdj', 'sm', { v: -5 }) + '<span class="muted small">Pre-filled with paste time</span></div>';
+    h += '<label class="f">Incident name</label>' + inp('name', inc.name, 'e.g. Tree fire, Mahers Rd');
+    h += '<label class="f">Call type</label><select id="f_code" data-bind="p.code" data-rerender="1">' + Object.keys(CALL_TYPES).map(k => '<option value="' + esc(k) + '"' + (p.code === k ? ' selected' : '') + '>' + esc(k + ' · ' + CALL_TYPES[k].label) + '</option>').join('') + '</select>';
+    h += '<div class="row"><div class="grow"><label class="f">Response code</label><select id="f_resp" data-bind="p.resp"><option value="1"' + (p.resp === '1' ? ' selected' : '') + '>1 · lights and sirens</option><option value="3"' + (p.resp !== '1' ? ' selected' : '') + '>3 · normal road</option></select></div>';
+    h += '<div class="grow"><label class="f">Area brigade</label><select id="f_area" data-bind="p.areaCode" data-rerender="1"><option value="">Unknown</option>' + S.settings.brigades.map(b => '<option value="' + b.code + '"' + (p.areaCode === b.code ? ' selected' : '') + '>' + esc(b.name) + ' (' + b.code + ')</option>').join('') + '</select></div></div>';
+    h += '<label class="f">Job details</label>' + inp('p.details', p.details, 'TREE FIRE SPREADING');
+    h += '<label class="f">Address</label>' + inp('p.address', p.address, '1314 MAHERS RD BONEGILLA');
+    h += '<label class="f">Cross roads</label>' + inp('p.crossText', (p.cross || []).join(' / '), 'Murray Valley Hwy / Newnan Lane');
+    h += '<div class="row"><div class="grow"><label class="f">Map ref</label>' + inp('p.map', p.map, 'SVNE 5625 A1') + '</div><div class="grow"><label class="f">Grid</label>' + inp('p.grid', p.grid, '005995') + '</div></div>';
+    h += '<div class="row"><div class="grow"><label class="f">Services notified</label>' + inp('p.services', p.services, 'F') + '</div><div class="grow"><label class="f">Incident number</label>' + inp('p.incNo', p.incNo, 'F26...') + '</div></div>';
+    h += '<h3>Paged (pre-filled as paged)</h3>';
+    inc.apps.forEach(a => { h += '<div class="app-row"><span class="dot s-' + a.status + '"></span><div class="nm">' + esc(a.callsign) + (a.mine ? ' <span class="badge blue">You</span>' : '') + '<div class="sub">' + esc(a.code) + ' · ' + ST_LABEL[a.status] + '</div></div>' + (a.mine ? '' : btn('Remove', 'wizRmApp', 'sm ghost', { id: a.id })) + '</div>'; });
+    h += '<h3>Conditions (optional)</h3>' + condForm(inc);
+    h += '<div style="margin-top:16px">' + btn('Next', 'wizNext', 'big go') + '</div>';
+  } else if (st === 4) {
+    if (!needKind) { h += '<h1>' + esc((CALL_TYPES[inc.p.code] || {}).label || 'Incident') + '</h1><p class="muted">No sub-type needed for this call.</p>'; }
+    else {
+      h += '<h1>What kind?</h1><p class="muted">Picked from the pager words. Change it if wrong.</p><div class="stack">';
+      KINDS[inc.p.code].forEach(([k]) => { h += '<button class="btn big ' + (inc.kind === k ? 'pri' : '') + '" data-a="wizKind" data-v="' + esc(k) + '">' + esc(k) + '</button>'; });
+      h += '</div>';
+    }
+    h += '<div style="margin-top:16px">' + btn('Next', 'wizNext', 'big go') + '</div>';
+  } else if (st === 5) {
+    h += '<h1>En route or on scene?</h1><div class="stack">';
+    h += btn('En route', 'wizStart', 'big warn', { v: 'enroute' }) + btn('On scene', 'wizStart', 'big go', { v: 'onscene' }) + btn('Support only (someone else in control)', 'wizStart', 'big', { v: 'support' });
+    h += '</div>';
+  }
+  if (st > 1) h += '<div style="margin-top:12px">' + btn('Back', 'wizBack', 'full ghost') + '</div>';
+  return h + '</div>';
+};
+function condForm(inc) {
+  const c = inc.conditions || {};
+  return '<div class="row"><div class="grow"><label class="f">Temp °C</label>' + inp('conditions.temp', c.temp, '32', 'text', 'inputmode="decimal"') + '</div><div class="grow"><label class="f">Wind km/h</label>' + inp('conditions.wind', c.wind, '20', 'text', 'inputmode="decimal"') + '</div></div>' +
+    '<div class="row"><div class="grow"><label class="f">Wind from</label>' + inp('conditions.dir', c.dir, 'NW') + '</div><div class="grow"><label class="f">RH %</label>' + inp('conditions.rh', c.rh, '15', 'text', 'inputmode="decimal"') + '</div></div>' +
+    '<label class="f">Notes (FDR, cloud, rain)</label>' + inp('conditions.notes', c.notes, 'Extreme FDR, gusty');
+}
+
+/* ---------- Incident dashboard ---------- */
+SCREENS.inc = () => {
+  const inc = S.cur; if (!inc) return SCREENS.home();
+  const my = myApp(inc);
+  let h = '<div class="top"><div class="wrap">';
+  h += '<div class="t1"><button class="btn sm ghost" data-a="goHome" style="min-height:36px;padding:2px 8px" aria-label="Home">‹</button><div class="name grow" style="flex:1">' + esc(inc.name || 'Incident') + '</div><div class="clock num mono" id="clock">' + fmtTS(now()) + '</div></div>';
+  h += '<div class="t1" style="align-items:center"><div class="event num mono" id="event">T+ 00:00</div><div style="text-align:right" class="small"><div class="muted">Paged ' + fmtTS(inc.pageTime) + '</div><div class="muted">' + esc(inc.p.codeRaw || inc.p.code || '') + (inc.p.incNo ? ' · ' + esc(inc.p.incNo) : '') + '</div></div></div>';
+  h += '<div class="t2"><span>FireCom <b>524</b></span><span>Fireground <b>' + (inc.fg.state === 'confirmed' ? esc(inc.fg.ch) : inc.fg.state === 'na' ? 'n/a' : '-') + '</b></span>' + (inc.ba.control && inc.ba.ch && inc.ba.ch !== inc.fg.ch ? '<span>BA <b>' + esc(inc.ba.ch) + '</b></span>' : '') + '<span><b>' + esc(inc.mode === 'control' ? controlLabel(inc) : inc.mode === 'logonly' ? 'Log only' : 'Support' + (inc.supportOf ? ': ' + inc.supportOf : '')) + '</b></span>' + (inc.cp.loc ? '<span>CP ' + (inc.cp.type === 'dynamic' ? 'dynamic' : 'static') + ': <b>' + esc(inc.cp.loc) + '</b></span>' : '') + '</div>';
+  h += '</div></div><div class="wrap">';
+  if (inc.locked) h += '<div class="lockbar">Exported and locked ' + fmtDT(inc.exportedAt) + '. New entries are flagged as late notes.</div>';
+  if (inc.status === 'continue') h += '<div class="banner amber">Not closed out. Timers are off. ' + btn('Close out incident', 'closeOut', 'sm go') + '</div>';
+  if (inc.mode === 'support') h += '<div class="banner">Support mode: not in control' + (inc.supportOf ? ' (' + esc(inc.supportOf) + ')' : '') + '. Timers off. ' + btn('Take control', 'takeControl', 'sm go') + '</div>';
+  if (inc.mode === 'logonly') h += '<div class="banner">Log only: control handed to ' + esc(inc.handover ? inc.handover.to : '') + '. Timers off. ' + btn('Resume control', 'resumeControl', 'sm') + '</div>';
+  if (my && (my.status === 'paged' || my.status === 'enroute') && inc.status === 'active') h += '<div style="margin-top:8px">' + btn(my.status === 'paged' ? 'Turning out' : 'ON SCENE', my.status === 'paged' ? 'myEnroute' : 'myOnScene', 'big ' + (my.status === 'paged' ? 'warn' : 'go')) + '</div>';
+  h += '<div id="timerbar"></div><div class="rems" id="rems"></div>';
+  if (isFire(inc)) h += '<div class="pinned" data-a="sheet" data-t="origin" style="cursor:pointer"><span class="small muted">POINT OF ORIGIN</span> <b>' + (inc.origin ? esc(inc.origin) : '<span class="amber">Tap to record</span>') + '</b></div>';
+  h += '<div class="tiles">' + tiles(inc) + '</div>';
+  h += '</div>';
+  h += '<div class="actions"><div class="wrap">' + btn('Under control', 'quickWb', 'go', { v: 'uc' }) + btn('Stop', 'sheet', 'warn', { t: 'stopvar' }) + btn('Hand over', 'startHandover', '') + btn('End incident', 'endIncident', 'danger') + '</div></div>';
+  return h;
+};
+function tiles(inc) {
+  const c = counts(inc); let h = '';
+  // appliances
+  h += '<div class="tile wide xwide" data-a="sheet" data-t="apps"><div class="tt"><span>Appliances</span><span class="muted small">' + esc(countsText(inc)) + '</span></div>';
+  inc.apps.filter(a => !['released', 'cancelled'].includes(a.status)).forEach(a => {
+    h += '<div class="app-row" data-a="sheet" data-t="app" data-id="' + a.id + '"><span class="dot s-' + a.status + '"></span><div class="nm">' + esc(a.callsign) + (a.mine ? ' <span class="badge blue">You</span>' : '') + '<div class="sub">' + esc(ST_LABEL[a.status]) + (a.crew ? ' · ' + esc(a.crew) + ' crew' : '') + (a.oic ? ' · OIC ' + esc(a.oic) : '') + (a.task ? ' · ' + esc(taskText(a.task)) : '') + '</div></div><span class="small muted num">' + (a.onSince && a.status !== 'returning' ? fmtT(a.onSince) : '') + '</span></div>';
+  });
+  const gone = inc.apps.filter(a => ['released', 'cancelled'].includes(a.status)).length;
+  h += '<div class="row" style="margin-top:8px">' + btn('+ Add appliance', 'sheet', 'sm', { t: 'addApp' }) + (gone ? '<span class="muted small">' + gone + ' released / cancelled</span>' : '') + '</div></div>';
+  // wordback
+  const lw = inc.wordbacks[inc.wordbacks.length - 1];
+  h += '<div class="tile' + (!lw && inc.onSceneAt && inc.mode === 'control' ? ' alert' : '') + '" data-a="openWb"><div class="tt">Wordback</div><div class="ts">' + (lw ? '<b class="' + (lw.status === 'nyuc' ? 'red' : lw.status === 'uc' ? 'green' : '') + '">' + esc(WB_STATUS[lw.status].label) + '</b><br>sent ' + fmtT(lw.t) : 'Not sent') + '</div></div>';
+  // sitrep
+  const ls = inc.sitreps[inc.sitreps.length - 1];
+  h += '<div class="tile" data-a="openSitrep"><div class="tt">Sitrep / message</div><div class="ts">' + (ls ? 'Last ' + fmtT(ls.t) + ' (' + inc.sitreps.length + ')' : 'None yet') + (inc.messages.length ? '<br>' + inc.messages.length + ' message' + (inc.messages.length > 1 ? 's' : '') : '') + '</div></div>';
+  // agencies
+  const ag = inc.agencies.filter(a => a.status !== 'left');
+  h += '<div class="tile" data-a="sheet" data-t="agencies"><div class="tt">Agencies</div><div class="ts">' + (inc.agencies.length ? inc.agencies.map(a => '<span class="s-' + a.status + '">' + esc(a.short || a.name) + ' ' + esc(AG_ST[a.status].toLowerCase()) + '</span>').join('<br>') : 'Police, AV, power co.') + '</div></div>';
+  // hazards & roads
+  const rc = inc.roads.filter(r => !r.open).length;
+  const hz = inc.hazards.filter(x => x.status !== 'removed');
+  h += '<div class="tile' + (rc ? ' alert' : '') + '" data-a="sheet" data-t="hazards"><div class="tt">Hazards &amp; roads</div><div class="ts">' + (rc ? '<b class="amber">' + rc + ' road closed</b><br>' : '') + (hz.length ? hz.map(x => '<span class="' + (x.status === 'managed' ? 'amber' : 'red') + '">' + esc(x.name) + '</span>').join(', ') : 'None logged') + '</div></div>';
+  // tactics
+  const tl = TACTICS[famOf(inc)] || TACTICS.inc;
+  const done = inc.tactics.length;
+  h += '<div class="tile" data-a="sheet" data-t="tactics"><div class="tt">Tactics / actions</div><div class="ts">' + done + ' of ' + tl.length + ' done' + (inc.tactics.length ? '<br>Last: ' + esc(inc.tactics[inc.tactics.length - 1].item) : '') + '</div></div>';
+  // contractors
+  const co = inc.contractors;
+  h += '<div class="tile' + (contractorsOpen(inc).length ? ' alert' : '') + '" data-a="sheet" data-t="contractors"><div class="tt">Contractors</div><div class="ts">' + (co.length ? co.map(x => '<span class="s-' + x.status + '">' + esc(x.type) + ' ' + esc(CON_ST[x.status].toLowerCase()) + '</span>').join('<br>') : 'None') + '</div></div>';
+  // BA
+  const inside = baInside(inc).length;
+  h += '<div class="tile' + (inside && !inc.ba.rit ? ' bad' : inside ? ' alert' : '') + '" data-a="sheet" data-t="ba"><div class="tt">BA</div><div class="ts">' + (inc.ba.teams.length ? inside + ' team' + (inside === 1 ? '' : 's') + ' inside' + (inc.ba.rit ? '' : '<br><b class="red">RIT not logged</b>') : (inc.ba.control ? 'BA control set' : 'Not in use')) + '</div></div>';
+  // radio signals
+  h += '<div class="tile" data-a="sheet" data-t="signals"><div class="tt">Radio signals</div><div class="ts">5-5 · 4-0 · 5-6 · 8-3 · 2-7</div></div>';
+  // calls/notes
+  h += '<div class="tile" data-a="sheet" data-t="notes"><div class="tt">Notes &amp; calls</div><div class="ts">' + (inc.calls.length ? inc.calls.length + ' phone call' + (inc.calls.length > 1 ? 's' : '') + '<br>' : '') + (inc.notes ? esc(inc.notes.slice(0, 60)) : 'Free text, phone calls') + '</div></div>';
+  // conditions
+  const cd = inc.conditions || {};
+  h += '<div class="tile" data-a="sheet" data-t="conditions"><div class="tt">Conditions</div><div class="ts">' + ([cd.temp && cd.temp + '°C', cd.wind && cd.wind + ' km/h', cd.dir, cd.rh && cd.rh + '% RH'].filter(Boolean).join(' · ') || 'Optional') + '</div></div>';
+  // log
+  h += '<div class="tile wide xwide" data-a="sheet" data-t="log"><div class="tt"><span>Log</span><span class="muted small">' + inc.log.length + ' entries</span></div><div class="log">' + inc.log.slice(-5).reverse().map(e => '<div class="e' + (e.late ? ' late' : '') + '"><span class="tm num">' + fmtT(e.t) + '</span><span>' + esc(e.text) + '</span></div>').join('') + '</div></div>';
+  return h;
+}
+
+/* ---------- live tick ---------- */
+let lastAlertKey = '';
+function tick(force) {
+  const c = $('#clock'); if (c) c.textContent = fmtTS(now());
+  const inc = S.cur;
+  if (S.screen !== 'inc' || !inc) { document.body.className = ''; return; }
+  const ev = $('#event'); if (ev) ev.textContent = 'T+ ' + fmtDur(now() - inc.pageTime);
+  const di = dueInfo(inc);
+  const tb = $('#timerbar');
+  let cls = '';
+  if (di) {
+    const rem = di.due - now();
+    const state = rem <= 0 ? 'over' : rem <= 90000 ? 'soon' : 'ok';
+    cls = 'tb-' + state + (inc.ack === di.due ? ' acked' : '');
+    if (tb) tb.innerHTML = '<div class="timerbar ' + state + '" data-a="timerTap"><div><div class="lab">' + esc(di.label) + (state === 'over' ? ' OVERDUE' : '') + '</div><div class="small muted">' + (di.kind === 'wordback' ? 'due ' + fmtT(di.due) + ' · tap to build' : 'due ' + fmtT(di.due) + ' · tap to build') + '</div></div><div class="cd num mono">' + fmtDur(Math.abs(rem)) + '</div></div>';
+    if (state === 'over') { const k = inc.id + di.kind + di.due; if (lastAlertKey !== k && inc.ack !== di.due) { lastAlertKey = k; alertBuzz(); } }
+  } else if (tb) {
+    tb.innerHTML = inc.timersStopped ? '<div class="small muted" style="margin-top:8px">Timers stopped ' + (inc.timersStoppedAt ? fmtT(inc.timersStoppedAt) : '') + '</div>' : '';
+  }
+  document.body.className = cls;
+  const rm = $('#rems');
+  if (rm) { const r = reminders(inc); const html = r.map(x => chip(x.text, false, 'remTap', { k: x.k, id: x.id || '' }, x.cls)).join(''); if (rm._h !== html) { rm.innerHTML = html; rm._h = html; } }
+}
+let audioCtx = null;
+function alertBuzz() {
+  if (S.settings.sound) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audioCtx.currentTime;
+      [0, .25, .5].forEach(d => { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'square'; o.frequency.value = 960; g.gain.setValueAtTime(.0001, t0 + d); g.gain.exponentialRampToValueAtTime(.4, t0 + d + .02); g.gain.exponentialRampToValueAtTime(.0001, t0 + d + .18); o.connect(g); g.connect(audioCtx.destination); o.start(t0 + d); o.stop(t0 + d + .2); });
+    } catch (e) {}
+  }
+  if (S.settings.vibrate && navigator.vibrate) { try { navigator.vibrate([300, 150, 300]); } catch (e) {} }
+}
+
+/* ===== Sheets (pop-ups) ===== */
+const SHEETS = {};
+const curInc = () => S.cur;
+const findApp = id => S.cur.apps.find(a => a.id === id);
+
+/* generic confirm */
+let confirmCb = null;
+function askConfirm(title, body, yesLabel, cb, cls) { confirmCb = cb; openSheet({ type: 'confirm', title, body, yes: yesLabel, cls: cls || 'danger' }); }
+SHEETS.confirm = s => sheetHd(s.title) + '<p>' + s.body + '</p><div class="stack" style="margin-top:12px">' + btn(esc(s.yes), 'confirmYes', 'big ' + s.cls) + btn('Cancel', 'closeSheet', 'big ghost') + '</div>';
+
+/* generic radio script prompt: Sent logs time */
+let radioCb = null;
+function radioPrompt(o, cb) { radioCb = cb || null; openSheet(Object.assign({ type: 'radio' }, o)); }
+SHEETS.radio = s => sheetHd(s.title || 'Radio') + '<p class="muted">Say this on FireCom 524:</p>' + script(s.text) + '<div class="stack" style="margin-top:12px">' + btn('Sent', 'radioSent', 'big go') + (s.later ? btn('Later (leave a reminder)', 'radioLater', 'big') : '') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
+
+/* ---- On scene ---- */
+SHEETS.onscene = s => {
+  const inc = curInc(); const d = s.d;
+  let h = sheetHd('On scene');
+  h += '<label class="f">Control name</label><div class="chips">';
+  const opts = [defaultControl(inc), roadControl(inc), S.settings.brigade + ' Control'].filter((v, i, a) => v && a.indexOf(v) === i);
+  opts.forEach(o => { h += chip(o, d.control === o, 'osCtl', { v: o }); });
+  h += '</div><div style="margin-top:6px">' + '<input type="text" id="os_ctl" data-sbind="d.control" value="' + esc(d.control) + '" placeholder="Custom control name"></div>';
+  h += '<label class="f">Fireground channel</label><div class="chips">' + chip('Confirmed', d.fgState === 'confirmed', 'osFg', { v: 'confirmed' }) + chip('Not needed', d.fgState === 'notneeded', 'osFg', { v: 'notneeded' }) + chip('Not available', d.fgState === 'na', 'osFg', { v: 'na' }) + '</div>';
+  if (d.fgState === 'confirmed') h += '<div class="chips" style="margin-top:8px">' + S.settings.fgList.map(c => chip(c, d.ch === c, 'osCh', { v: c })).join('') + '</div>';
+  h += '<label class="f">Control point</label><div class="chips">' + chip('Static', d.cpType === 'static', 'osCp', { v: 'static' }) + chip('Dynamic', d.cpType === 'dynamic', 'osCp', { v: 'dynamic' }) + '</div>';
+  h += '<div style="margin-top:6px"><input type="text" id="os_loc" data-sbind="d.cpLoc" value="' + esc(d.cpLoc) + '" placeholder="' + (d.cpType === 'dynamic' ? 'Truck the IC is on, e.g. Kiewa Tanker 1' : 'Location, e.g. front gate 1314 Mahers Rd') + '"></div>';
+  const tmp = Object.assign({}, inc, { controlName: d.control, fg: { state: d.fgState, ch: d.ch } });
+  h += '<h3>Script</h3>' + script(onSceneScript(tmp));
+  h += '<div class="stack" style="margin-top:12px">' + btn('Sent', 'osSent', 'big go') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
+  return h;
+};
+
+/* ---- Appliances list ---- */
+SHEETS.apps = () => {
+  const inc = curInc(); let h = sheetHd('Appliances') + '<p class="muted">' + esc(countsText(inc)) + '</p>';
+  const active = inc.apps.filter(a => !['released', 'cancelled'].includes(a.status));
+  active.forEach(a => { h += '<div class="app-row" data-a="sheet" data-t="app" data-id="' + a.id + '"><span class="dot s-' + a.status + '"></span><div class="nm">' + esc(a.callsign) + '<div class="sub">' + esc(ST_LABEL[a.status]) + (a.task ? ' · ' + esc(taskText(a.task)) : '') + '</div></div></div>'; });
+  h += '<div style="margin-top:10px">' + btn('+ Add appliance', 'sheet', 'full', { t: 'addApp' }) + '</div>';
+  const gone = inc.apps.filter(a => ['released', 'cancelled'].includes(a.status));
+  if (gone.length) { h += '<h3>Released / cancelled</h3>'; gone.forEach(a => { h += '<div class="app-row" data-a="sheet" data-t="app" data-id="' + a.id + '"><span class="dot s-' + a.status + '"></span><div class="nm">' + esc(a.callsign) + '<div class="sub">' + esc(ST_LABEL[a.status]) + ' ' + fmtT(a.hist[a.hist.length - 1].t) + '</div></div></div>'; }); }
+  return h;
+};
+SHEETS.addApp = s => {
+  const q = (s.q || '').trim().toLowerCase();
+  const inc = curInc(); const have = new Set(inc.apps.map(a => a.callsign));
+  let list = S.settings.directory.filter(d => !have.has(d.callsign));
+  if (q) list = list.filter(d => (d.callsign + ' ' + d.code + ' ' + d.brigade).toLowerCase().includes(q));
+  let h = sheetHd('Add appliance', s.back);
+  h += '<input type="text" id="addq" data-sbind="q" data-live="1" value="' + esc(s.q || '') + '" placeholder="Type callsign or pager code, e.g. KIEWT2" autocomplete="off">';
+  h += '<div class="chips" style="margin-top:8px">' + chip('Add as paged', s.st === 'paged', 'addSt', { v: 'paged' }) + chip('En route', s.st === 'enroute', 'addSt', { v: 'enroute' }) + chip('On scene', s.st === 'onscene', 'addSt', { v: 'onscene' }) + '</div>';
+  h += '<div id="addlist">' + list.slice(0, 30).map(d => '<div class="app-row" data-a="addPick" data-cs="' + esc(d.callsign) + '" data-code="' + esc(d.code) + '"><div class="nm">' + esc(d.callsign) + '<div class="sub">' + esc([d.code, d.brigade].filter(Boolean).join(' · ')) + '</div></div><span class="chip">Add</span></div>').join('') + (q ? '<div style="margin-top:8px">' + btn('Add "' + esc(s.q) + '" as custom', 'addCustom', 'full') + '</div>' : '') + '</div>';
+  return h;
+};
+SHEETS.app = s => {
+  const inc = curInc(); const a = findApp(s.id); if (!a) return sheetHd('Appliance');
+  const fam = famOf(inc);
+  let h = sheetHd(a.callsign, s.back);
+  h += '<p><span class="badge s-' + a.status + '">' + ST_LABEL[a.status] + '</span> <span class="muted small">' + esc(a.code) + '</span></p>';
+  const sts = a.mine ? ['enroute', 'onscene', 'water', 'rehab', 'returning'] : ['paged', 'enroute', 'onscene', 'water', 'rehab', 'released', 'cancelled'];
+  h += '<div class="chips">' + sts.map(x => chip(x === 'onscene' && a.status === 'water' ? 'Back on scene' : x === 'onscene' && a.status === 'rehab' ? 'Back from rehab' : ST_LABEL[x], a.status === x, 'appSt', { id: a.id, v: x }, x === 'returning' ? 'red' : '')).join('') + '</div>';
+  h += '<h3>Crew</h3><div class="row"><div class="stepper">' + btn('−', 'crewAdj', 'sm', { id: a.id, v: -1 }) + '<span class="v num">' + esc(a.crew || '0') + '</span>' + btn('+', 'crewAdj', 'sm', { id: a.id, v: 1 }) + '</div><div class="grow"><input type="text" id="oic_' + a.id + '" data-bind="apps.#' + a.id + '.oic" value="' + esc(a.oic) + '" placeholder="OIC name (optional)"></div></div>';
+  h += '<h3>Tasking</h3>';
+  const t = s.task || (a.task ? clone(a.task) : { type: '' });
+  h += '<div class="chips">' + Object.keys(TASKS).map(k => chip(TASKS[k], t.type === k, 'tkType', { v: k })).join('') + '</div>';
+  if (t.type === 'attack') {
+    const subs = s.more ? ATTACK_SUB.more : (ATTACK_SUB[fam] || ATTACK_SUB.more);
+    h += '<label class="f">Fire attack</label><div class="chips">' + subs.map(x => chip(x, t.sub === x, 'tkSub', { v: x })).join('') + (s.more ? '' : chip('More…', false, 'tkMore')) + '</div>';
+    h += '<label class="f">Hose lines (optional)</label><div class="chips">' + [1, 2, 3, 4].map(n => chip(String(n), t.lines === n, 'tkLines', { v: n })).join('') + '</div>';
+  }
+  if (t.type) {
+    h += '<label class="f">' + (t.type === 'standby' || t.type === 'road' ? 'Location' : 'Location (optional)') + '</label><input type="text" id="tk_loc" data-sbind="task.loc" value="' + esc(t.loc || '') + '" placeholder="e.g. Murray Valley Hwy gate">';
+    h += '<label class="f">Target / objective (optional)</label><input type="text" id="tk_tgt" data-sbind="task.target" value="' + esc(t.target || '') + '" placeholder="e.g. hold at Newnan Lane, protect house">';
+    h += '<div style="margin-top:10px">' + btn('Save tasking', 'tkSave', 'full go', { id: a.id }) + '</div>';
+  }
+  if (a.tasks.length) { h += '<h3>Tasking history</h3><div class="log">' + a.tasks.map(x => '<div class="e"><span class="tm">' + fmtT(x.t) + '</span><span>' + esc(taskText(x)) + '</span></div>').join('') + '</div>'; }
+  h += '<h3>Status history</h3><div class="log">' + a.hist.map(x => '<div class="e"><span class="tm">' + fmtTS(x.t) + '</span><span>' + ST_LABEL[x.s] + '</span></div>').join('') + '</div>';
+  if (!a.mine) h += '<div style="margin-top:12px">' + btn('Remove (added by mistake)', 'appRemove', 'full ghost', { id: a.id }) + '</div>';
+  return h;
+};
+
+/* ---- Wordback builder ---- */
+SHEETS.wordback = s => {
+  const inc = curInc(); const d = s.d;
+  let h = sheetHd('Wordback');
+  h += '<p class="muted">' + esc(wbType(inc)) + (inc.kind ? ' · ' + esc(inc.kind) : '') + '</p>';
+  h += '<label class="f">Status</label><div class="chips">' + ['investigating', 'nyuc', 'uc', 'stop', 'falsealarm', 'noaction'].map(k => chip(WB_STATUS[k].label, d.status === k, 'wbSt', { v: k }, k === 'nyuc' ? 'red' : k === 'uc' ? 'green' : '')).join('') + '</div>';
+  h += '<label class="f">Short description (optional)</label><input type="text" id="wb_desc" data-sbind="d.desc" value="' + esc(d.desc || '') + '" placeholder="e.g. tree fire spreading into paddock, 1 ha">';
+  h += '<label class="f">Request resources</label><div class="chips">';
+  const frvPaged = inc.apps.some(a => a.frv);
+  RES.forEach(r => { let lab = r.label; if (r.k === 'frv' && frvPaged) lab += ' (already paged)'; h += chip(lab, (d.res || []).includes(r.k), 'wbRes', { v: r.k }); });
+  h += '</div>';
+  if ((d.res || []).includes('tankers')) h += '<label class="f">Make tankers</label><div class="chips">' + [2, 3, 4, 5, 6, 8, 10].map(n => chip(String(n), d.tankers === n, 'wbTank', { v: n })).join('') + '</div>';
+  if ((d.res || []).includes('contractor')) h += '<label class="f">Machine type</label><div class="chips">' + CON_TYPES.map(x => chip(x, d.contractorType === x, 'wbCon', { v: x })).join('') + '</div>';
+  h += '<label class="f">Anything else (optional)</label><input type="text" id="wb_extra" data-sbind="d.extra" value="' + esc(d.extra || '') + '" placeholder="Extra words for the radio">';
+  if (d.status) h += '<h3>Script</h3>' + script(wbScript(inc, d));
+  h += '<div class="stack" style="margin-top:12px">' + btn('Sent', 'wbSent', 'big go' + (d.status ? '' : '" disabled="disabled')) + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
+  if (inc.wordbacks.length) h += '<h3>Previous</h3><div class="log">' + inc.wordbacks.map(w => '<div class="e"><span class="tm">' + fmtT(w.t) + '</span><span>' + esc(w.plain) + '</span></div>').join('') + '</div>';
+  return h;
+};
+SHEETS.stopvar = () => sheetHd('Stop') + '<p class="muted">Sends a Stop wordback. Anything still en route gets marked "Cancelled en route".</p><div class="stack">' + btn('Stop', 'quickWb', 'big warn', { v: 'stop' }) + btn('False alarm', 'quickWb', 'big', { v: 'falsealarm' }) + btn('No action required', 'quickWb', 'big', { v: 'noaction' }) + '</div>';
+
+/* ---- Sitrep builder ---- */
+const SITREP_PICKS = {
+  gs: [['size', 'Size', ['< 0.1 ha', '0.5 ha', '1 ha', '2 ha', '5 ha', '10 ha', '20+ ha']], ['dir', 'Heading', ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']], ['ros', 'Rate of spread', ['Nil', 'Slow', 'Moderate', 'Fast']], ['flame', 'Flame height', ['< 0.5 m', '1 m', '2 m', '3+ m']], ['fuel', 'Fuel', ['Grass', 'Crop', 'Scrub', 'Timber', 'Pine plantation', 'Stubble']]],
+  struc: [['btype', 'Building', ['House', 'Shed', 'Garage', 'Commercial', 'Farm building', 'Unit']], ['area', 'Area involved', ['Contents', 'One room', 'Several rooms', 'Roof space', 'Whole building']], ['extent', 'Extent', ['Contained to room of origin', 'Spreading', 'Fully involved', 'Knocked down']], ['smoke', 'Smoke', ['Light', 'Moderate', 'Heavy', 'Nil visible']]],
+  veh: [['vtype', 'Vehicle', ['Car', 'Ute / 4WD', 'Truck', 'Tractor / machinery', 'Bus', 'Caravan']], ['extent', 'Extent', ['Engine bay', 'Cabin', 'Fully involved', 'Knocked down']], ['leak', 'Fuel leak', ['None', 'Minor', 'Significant']]]
+};
+SITREP_PICKS.mva = SITREP_PICKS.veh; SITREP_PICKS.nostc = SITREP_PICKS.veh;
+const THREATS = ['Nil', 'Houses', 'Sheds / outbuildings', 'Livestock', 'Fences', 'Crops / pasture', 'Road', 'Power lines', 'Bush / plantation'];
+function changesSince(inc) {
+  const last = inc.sitreps[inc.sitreps.length - 1]; const since = last ? last.t : (inc.wordbacks[0] ? inc.wordbacks[0].t : 0);
+  return inc.log.filter(e => e.t > since && !/^(Sitrep|Wordback|Radio:)/.test(e.text)).map(e => e.text);
+}
+function taskSummary(inc) { return inc.apps.filter(a => a.status === 'onscene' && a.task).map(a => a.callsign + ': ' + taskText(a.task)); }
+function sitrepText(inc, d) {
+  const picks = SITREP_PICKS[famOf(inc)] || [];
+  const parts = [];
+  picks.forEach(([k, lab]) => { if (d.f[k]) parts.push(k === 'dir' ? 'heading ' + d.f[k] : k === 'ros' ? d.f[k].toLowerCase() + ' rate of spread' : k === 'flame' ? 'flame height ' + d.f[k] : (lab === 'Size' ? 'approx ' + d.f[k] : d.f[k].toLowerCase()) ); });
+  let s = 'FireCom, ' + controlLabel(inc) + ', sitrep. ';
+  if (parts.length) s += titleFirst(parts.join(', ')) + '. ';
+  if (d.threat && d.threat.length) s += 'Threatening: ' + d.threat.join(', ').toLowerCase() + '. ';
+  if (d.potential) s += d.potential.trim().replace(/\.?$/, '. ');
+  if (d.eta) s += 'Expect under control ' + d.eta + '. ';
+  if (d.useTasks) { const t = taskSummary(inc); if (t.length) s += t.join('; ') + '. '; }
+  if (d.useChanges) { const c = changesSince(inc).filter(x => !(d.useTasks && / tasked: /.test(x)) && !/^(Pager|Incident started|Message to FireCom)/.test(x)); if (c.length) s += 'Since last: ' + c.slice(-6).join('; ') + '. '; }
+  if (d.extra) s += d.extra.trim();
+  return s.trim();
+}
+const titleFirst = s => s.charAt(0).toUpperCase() + s.slice(1);
+SHEETS.sitrep = s => {
+  const inc = curInc(); const d = s.d; const fam = famOf(inc);
+  let h = sheetHd('Sitrep');
+  const di = dueInfo(inc);
+  if (di && di.kind === 'sitrep' && di.due <= now()) h += '<div class="banner amber">Sitrep due. Update the wordback status or request resources if things have changed. <div class="row" style="margin-top:6px">' + btn('Update wordback', 'openWb', 'sm') + btn('Request resources', 'openWbRes', 'sm') + '</div></div>';
+  (SITREP_PICKS[fam] || []).forEach(([k, lab, opts]) => { h += '<label class="f">' + esc(lab) + '</label><div class="chips">' + opts.map(o => chip(o, d.f[k] === o, 'srPick', { k, v: o })).join('') + '</div>'; });
+  h += '<label class="f">Threatening</label><div class="chips">' + THREATS.map(o => chip(o, (d.threat || []).includes(o), 'srThreat', { v: o })).join('') + '</div>';
+  h += '<label class="f">Potential / prediction</label><input type="text" id="sr_pot" data-sbind="d.potential" value="' + esc(d.potential || '') + '" placeholder="e.g. potential to reach Newnan Lane">';
+  h += '<label class="f">Expect under control</label><div class="chips">' + ['in 5 minutes', 'in 15 minutes', 'in 30 minutes', 'in 1 hour', 'in 2+ hours'].map(o => chip(o, d.eta === o, 'srEta', { v: o })).join('') + '</div>';
+  h += '<div class="chips" style="margin-top:10px">' + chip('Include taskings', d.useTasks, 'srTog', { v: 'useTasks' }) + chip('Include changes since last', d.useChanges, 'srTog', { v: 'useChanges' }) + chip('SMEACS-Q', false, 'sheet', { t: 'smeacs', back: 1 }) + '</div>';
+  const ch = changesSince(inc);
+  if (ch.length) h += '<div class="card small" style="margin-top:8px"><b>Changes since last sitrep</b><br>' + ch.slice(-8).map(esc).join('<br>') + '</div>';
+  h += '<label class="f">Anything else</label><input type="text" id="sr_extra" data-sbind="d.extra" value="' + esc(d.extra || '') + '">';
+  h += '<h3>Script</h3>' + script(sitrepText(inc, d));
+  h += '<div class="stack" style="margin-top:12px">' + btn('Sent', 'srSent', 'big go') + btn('Send a message instead', 'openMsg', '') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
+  return h;
+};
+SHEETS.message = s => {
+  const inc = curInc(); const d = s.d;
+  let h = sheetHd('Message');
+  h += '<p class="muted">For anything outside a wordback or sitrep.</p><input type="text" id="msg_txt" data-sbind="d.text" value="' + esc(d.text || '') + '" placeholder="e.g. 5-6 on scene">';
+  h += '<h3>Script</h3>' + script('FireCom, ' + controlLabel(inc) + ', message: ' + (d.text || '...'));
+  h += '<div class="stack" style="margin-top:12px">' + btn('Sent', 'msgSent', 'big go') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
+  if (inc.messages.length) h += '<h3>Sent</h3><div class="log">' + inc.messages.map(m => '<div class="e"><span class="tm">' + fmtT(m.t) + '</span><span>' + esc(m.text) + '</span></div>').join('') + '</div>';
+  return h;
+};
+function smeacs(inc) {
+  const ag = inc.agencies.filter(a => a.status === 'onscene').map(a => a.name);
+  const lw = inc.wordbacks[inc.wordbacks.length - 1];
+  const haz = inc.hazards.filter(x => x.status !== 'removed').map(x => x.name + (x.status === 'managed' ? ' (managed)' : ''));
+  const ls = inc.sitreps[inc.sitreps.length - 1];
+  return [
+    ['S', 'Situation', [wbType(inc) + (inc.kind ? ' (' + inc.kind + ')' : '') + ' at ' + titleCase(inc.p.address || ''), lw ? 'Status: ' + WB_STATUS[lw.status].plain + ' (' + fmtT(lw.t) + ')' : 'No wordback yet', ls ? 'Last sitrep: ' + ls.text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '') : '', inc.origin ? 'Origin: ' + inc.origin : ''].filter(Boolean)],
+    ['M', 'Mission', [inc.mission || 'Protect life, property and environment; contain and extinguish.']],
+    ['E', 'Execution', taskSummary(inc).length ? taskSummary(inc) : ['No taskings logged']],
+    ['A', 'Administration', [countsText(inc), inc.contractors.length ? 'Contractors: ' + inc.contractors.map(c => c.type + ' (' + CON_ST[c.status] + ')').join(', ') : '', inc.roads.filter(r => !r.open).length ? 'Roads closed: ' + inc.roads.filter(r => !r.open).map(r => r.road).join(', ') : ''].filter(Boolean)],
+    ['C', 'Command', [controlLabel(inc) + ', IC ' + (S.settings.name || 'me') + ' on ' + inc.myApp, 'Control point: ' + (inc.cp.type === 'dynamic' ? 'dynamic' : 'static') + (inc.cp.loc ? ', ' + inc.cp.loc : ''), ag.length ? 'Agencies on scene: ' + ag.join(', ') : ''].filter(Boolean)],
+    ['C', 'Communications', ['FireCom 524', 'Fireground ' + (inc.fg.state === 'confirmed' ? inc.fg.ch : inc.fg.state === 'na' ? 'not available' : 'not used'), inc.ba.control && inc.ba.ch ? 'BA ' + inc.ba.ch : ''].filter(Boolean)],
+    ['S', 'Safety', haz.length ? haz : ['No hazards logged'], baInside(inc).length ? ['BA teams inside: ' + baInside(inc).length] : []],
+    ['Q', 'Questions', ['Any questions?']]
+  ].map(r => [r[0], r[1], r[2].concat(r[3] || [])]);
+}
+SHEETS.smeacs = s => { const inc = curInc(); let h = sheetHd('SMEACS-Q', s.back); h += '<label class="f">Mission (edit)</label><input type="text" id="smq_m" data-bind="mission" value="' + esc(inc.mission || '') + '" placeholder="Protect life, property and environment; contain and extinguish.">'; smeacs(inc).forEach(([l, n, items]) => { h += '<div class="card" style="margin-top:8px"><b>' + l + ' · ' + n + '</b><div class="small">' + items.map(esc).join('<br>') + '</div></div>'; }); return h; };
+
+/* ---- Agencies ---- */
+SHEETS.agencies = s => {
+  const inc = curInc();
+  let h = sheetHd('Agencies') + '<p class="muted">Requested, then on scene, then left scene.</p>';
+  inc.agencies.forEach(a => {
+    h += '<div class="card" style="margin-top:8px"><div class="row" style="justify-content:space-between"><b>' + esc(a.name) + '</b><span class="badge s-' + a.status + '">' + AG_ST[a.status] + '</span></div>';
+    h += '<div class="chips" style="margin-top:6px">' + ['requested', 'onscene', 'left'].map(x => chip(AG_ST[x], a.status === x, 'agSt', { id: a.id, v: x })).join('') + '</div>';
+    h += '<input type="text" id="agn_' + a.id + '" data-bind="agencies.#' + a.id + '.note" value="' + esc(a.note || '') + '" placeholder="Name / unit / notes" style="margin-top:6px">';
+    h += '<div class="small muted" style="margin-top:4px">' + a.hist.map(x => AG_ST[x.s] + ' ' + fmtT(x.t)).join(' · ') + '</div></div>';
+  });
+  h += '<h3>Add</h3><div class="chips">' + AGENCIES.map(([n]) => chip(n, false, 'agAdd', { v: n })).join('') + '</div>';
+  h += '<div class="row" style="margin-top:8px"><div class="grow"><input type="text" id="ag_custom" data-sbind="custom" value="' + esc(s.custom || '') + '" placeholder="Other agency"></div>' + btn('Add', 'agAddCustom', 'sm') + '</div>';
+  return h;
+};
+/* ---- Hazards and roads ---- */
+SHEETS.hazards = s => {
+  const inc = curInc();
+  let h = sheetHd('Hazards & roads');
+  h += '<h3>Road closures</h3>';
+  inc.roads.forEach(r => {
+    h += '<div class="card" style="margin-top:6px"><div class="row" style="justify-content:space-between"><b>' + esc(r.road) + '</b>' + (r.open ? '<span class="badge green">Reopened ' + fmtT(r.open) + '</span>' : '<span class="badge amber">Closed ' + fmtT(r.closed) + '</span>') + '</div><div class="small muted">' + esc(r.reason || '') + (r.by ? ' · by ' + esc(r.by) : '') + '</div>' + (r.open ? (r.reopenReason ? '<div class="small">Reopened: ' + esc(r.reopenReason) + '</div>' : '') : '<div class="row" style="margin-top:6px"><div class="grow"><input type="text" id="rr_' + r.id + '" data-bind="roads.#' + r.id + '.reopenReason" value="' + esc(r.reopenReason || '') + '" placeholder="Reopen reason (optional)"></div>' + btn('Reopened', 'roadOpen', 'sm go', { id: r.id }) + '</div>') + '</div>';
+  });
+  const pol = inc.agencies.find(a => a.name === 'Police' && a.status !== 'left');
+  h += '<div class="card" style="margin-top:8px"><input type="text" id="rd_name" data-sbind="road" value="' + esc(s.road || titleCase(roadName(inc.p))) + '" placeholder="Road"><div class="chips" style="margin-top:6px">' + ['Fire / smoke', 'Fireground operations', 'Tree down', 'Power lines', 'Crash', 'Hazmat'].map(x => chip(x, s.reason === x, 'rdReason', { v: x })).join('') + '</div><div class="chips" style="margin-top:6px">' + ['Police (5-6)', 'Fire crews', 'Council / DTP'].map(x => chip('Closed by ' + x, s.by === x, 'rdBy', { v: x })).join('') + '</div><div style="margin-top:8px">' + btn('Road closed now', 'roadClose', 'full warn') + '</div>' + (!pol ? '<p class="small amber">Reminder: request 5-6 for traffic control.</p>' : '') + '</div>';
+  h += '<h3>Hazards</h3><p class="small muted">Tap to cycle: identified (red), managed (amber), removed.</p><div class="chips">';
+  HAZARDS.forEach(n => { const x = inc.hazards.find(z => z.name === n); h += chip(n + (x ? ' · ' + x.status : ''), !!x && x.status !== 'removed', 'hzTap', { v: n }, x ? (x.status === 'managed' ? 'amber' : x.status === 'identified' ? 'red' : '') : ''); });
+  inc.hazards.filter(x => !HAZARDS.includes(x.name)).forEach(x => { h += chip(x.name + ' · ' + x.status, x.status !== 'removed', 'hzTap', { v: x.name }, x.status === 'managed' ? 'amber' : x.status === 'identified' ? 'red' : ''); });
+  h += '</div><div class="row" style="margin-top:8px"><div class="grow"><input type="text" id="hz_c" data-sbind="hz" value="' + esc(s.hz || '') + '" placeholder="Other hazard"></div>' + btn('Add', 'hzAdd', 'sm') + '</div>';
+  return h;
+};
+/* ---- Tactics ---- */
+SHEETS.tactics = s => {
+  const inc = curInc(); const fam = famOf(inc); const list = TACTICS[fam] || TACTICS.inc;
+  let h = sheetHd('Tactics / actions') + '<p class="muted">Tap when done. Each tick is timestamped.</p>';
+  list.forEach(it => {
+    const d = inc.tactics.find(x => x.item === it);
+    h += '<div class="check' + (d ? ' done' : '') + '" data-a="tacTap" data-v="' + esc(it) + '"><span class="bx">' + (d ? '✓' : '') + '</span><div style="flex:1">' + esc(it) + (d ? '<div class="small muted">' + fmtT(d.t) + (d.note ? ' · ' + esc(d.note) : '') + '</div>' : '') + '</div></div>';
+    if (it === 'No one inside' && s.noone) {
+      h += '<div class="card" style="margin-top:6px"><div class="chips">' + chip('Confirmed by search', s.noone.how === 'search', 'nooneHow', { v: 'search' }) + chip('Verbal from owner / tenant', s.noone.how === 'verbal', 'nooneHow', { v: 'verbal' }) + '</div>' + (s.noone.how === 'verbal' ? '<input type="text" id="no_n" data-sbind="noone.name" value="' + esc(s.noone.name || '') + '" placeholder="Name" style="margin-top:6px"><input type="text" id="no_r" data-sbind="noone.rel" value="' + esc(s.noone.rel || '') + '" placeholder="Relationship (owner, tenant, neighbour)" style="margin-top:6px">' : '') + '<div style="margin-top:6px">' + btn('Log "No one inside"', 'nooneSave', 'full go') + '</div></div>';
+    }
+  });
+  inc.tactics.filter(x => !list.includes(x.item)).forEach(d => { h += '<div class="check done"><span class="bx">✓</span><div>' + esc(d.item) + '<div class="small muted">' + fmtT(d.t) + '</div></div></div>'; });
+  h += '<div class="row" style="margin-top:8px"><div class="grow"><input type="text" id="tac_c" data-sbind="custom" value="' + esc(s.custom || '') + '" placeholder="Other action"></div>' + btn('Log', 'tacCustom', 'sm') + '</div>';
+  return h;
+};
+/* ---- Contractors ---- */
+const CON_TYPES = ['Excavator', 'Dozer', 'Grader', 'Water cart', 'Tree feller / arborist', 'Tow truck', 'Skid steer', 'Other'];
+SHEETS.contractors = s => {
+  const inc = curInc(); let h = sheetHd('Contractors') + '<p class="muted">Requested, DDO approved, on scene, left. Arrival and departure times are logged.</p>';
+  inc.contractors.forEach(c => {
+    const hrs = machineMs(c);
+    h += '<div class="card" style="margin-top:8px"><div class="row" style="justify-content:space-between"><b>' + esc(c.type) + '</b><span class="badge s-' + c.status + '">' + CON_ST[c.status] + '</span></div>';
+    h += '<div class="row" style="margin-top:6px"><div class="grow"><input type="text" id="cc_' + c.id + '" data-bind="contractors.#' + c.id + '.company" value="' + esc(c.company) + '" placeholder="Company"></div><div class="grow"><input type="text" id="co_' + c.id + '" data-bind="contractors.#' + c.id + '.operator" value="' + esc(c.operator) + '" placeholder="Operator"></div></div>';
+    h += '<input type="text" id="cm_' + c.id + '" data-bind="contractors.#' + c.id + '.machine" value="' + esc(c.machine) + '" placeholder="Machine (make / model / rego)" style="margin-top:6px">';
+    h += '<div class="chips" style="margin-top:6px">' + ['requested', 'approved', 'onscene', 'left'].map(x => chip(CON_ST[x], c.status === x, 'conSt', { id: c.id, v: x })).join('') + '</div>';
+    const running = (c.runs || []).find(r => !r.end);
+    h += '<div class="row" style="margin-top:6px">' + (running ? btn('Machine stop', 'conRun', 'sm warn', { id: c.id }) : btn('Machine start', 'conRun', 'sm go', { id: c.id })) + '<span class="small">Machine hours: <b class="num">' + fmtHrs(hrs) + '</b>' + (running ? ' <span class="green">running</span>' : '') + '</span></div>';
+    h += '<div class="small muted" style="margin-top:4px">' + c.hist.map(x => CON_ST[x.s] + ' ' + fmtT(x.t)).join(' · ') + '</div></div>';
+  });
+  h += '<h3>Add contractor</h3><div class="chips">' + CON_TYPES.map(x => chip(x, false, 'conAdd', { v: x })).join('') + '</div>';
+  return h;
+};
+function machineMs(c) { return (c.runs || []).reduce((s, r) => s + ((r.end || now()) - r.start), 0); }
+/* ---- BA ---- */
+SHEETS.ba = s => {
+  const inc = curInc(); const b = inc.ba;
+  let h = sheetHd('Breathing apparatus');
+  h += '<div class="chips">' + chip(b.control ? 'BA control established' : 'BA control not set', b.control, 'baCtl') + '</div>';
+  h += '<div class="row"><div class="grow"><label class="f">BA control (who)</label><input type="text" id="ba_who" data-bind="ba.who" value="' + esc(b.who) + '" placeholder="Name / appliance"></div><div class="grow"><label class="f">BA channel</label><input type="text" id="ba_ch" data-bind="ba.ch" value="' + esc(b.ch) + '" placeholder="e.g. 353" inputmode="numeric"></div></div>';
+  h += '<label class="f">Search pattern</label><div class="chips">' + chip('Left hand', b.pattern === 'Left hand', 'baPat', { v: 'Left hand' }) + chip('Right hand', b.pattern === 'Right hand', 'baPat', { v: 'Right hand' }) + '</div>';
+  h += '<label class="f">Rapid intervention team</label>' + (b.rit ? '<p><b class="green">' + esc(b.rit) + '</b> ' + btn('Change', 'baRitClear', 'sm ghost') + '</p>' : '<div class="row"><div class="grow"><input type="text" id="ba_rit" data-sbind="rit" value="' + esc(s.rit || '') + '" placeholder="RIT crew / appliance"></div>' + btn('Log RIT', 'baRit', 'sm go') + btn('RIT not available', 'baRitNA', 'sm warn') + '</div>');
+  h += '<h3>Teams</h3>';
+  b.teams.forEach(t => {
+    const inside = t.in && !t.out;
+    h += '<div class="card" style="margin-top:6px' + (inside ? ';border-color:var(--amber)' : '') + '"><div class="row" style="justify-content:space-between"><b>' + esc(t.name) + '</b><span class="small">' + (t.in ? 'In ' + fmtT(t.in) : '') + (t.out ? ' · Out ' + fmtT(t.out) : '') + (inside ? ' · <b class="amber num" data-since="' + t.in + '">' + fmtDur(now() - t.in) + '</b>' : '') + '</span></div>';
+    h += '<input type="text" id="bt_' + t.id + '" data-bind="ba.teams.#' + t.id + '.names" value="' + esc(t.names || '') + '" placeholder="Names or count" style="margin-top:6px">';
+    h += '<div class="row" style="margin-top:6px">' + (!t.in ? btn('Entered', 'baIn', 'sm warn', { id: t.id }) : !t.out ? btn('Exited', 'baOut', 'sm go', { id: t.id }) : '<span class="green small">Out</span>') + '</div></div>';
+  });
+  h += '<div style="margin-top:8px">' + btn('+ Add BA team', 'baAdd', 'full') + '</div>';
+  return h;
+};
+/* ---- Radio signals ---- */
+const SIGNALS = [['5-5', 'Hostile act, significant violence or terrorism', 'Radio signal 5-5: hostile act'], ['4-0', 'Urgent police, crew or public under threat', 'Radio signal 4-0: urgent police attendance requested'], ['5-6', 'Police attendance (non-urgent)', 'Radio signal 5-6: police requested (non-urgent)'], ['8-3', 'Deceased person', 'Radio signal 8-3: deceased person'], ['2-7', 'CIS / peer support required', 'Radio signal 2-7: peer support requested']];
+SHEETS.signals = () => sheetHd('Radio signals') + '<div class="stack">' + SIGNALS.map(([c, m]) => '<button class="btn big" data-a="sigTap" data-v="' + c + '" style="text-align:left"><span style="font-size:1.3em">' + c + '</span> <span class="small" style="font-weight:500">' + esc(m) + '</span></button>').join('') + '</div>';
+/* ---- Notes & calls ---- */
+SHEETS.notes = s => {
+  const inc = curInc(); let h = sheetHd('Notes & phone calls');
+  h += '<label class="f">Incident notes</label>' + ta('notes', inc.notes, 'Anything worth keeping. Goes in the export.');
+  h += '<div class="chips" style="margin-top:6px">' + ['Left in black, patrol advised', 'VicEmergency 24 hr request', 'Owner to call back', 'Owner / occupier details: '].map(x => chip('+ ' + x, false, 'noteIns', { v: x })).join('') + '</div>';
+  h += '<h3>Log a phone call</h3><input type="text" id="call_who" data-sbind="who" value="' + esc(s.who || '') + '" placeholder="Who (e.g. DDO, landholder)"><input type="text" id="call_what" data-sbind="what" value="' + esc(s.what || '') + '" placeholder="What was decided" style="margin-top:6px"><div style="margin-top:6px">' + btn('Log call', 'callLog', 'full go') + '</div>';
+  if (inc.calls.length) h += '<div class="log" style="margin-top:8px">' + inc.calls.map(c => '<div class="e"><span class="tm">' + fmtT(c.t) + '</span><span><b>' + esc(c.who) + '</b>: ' + esc(c.what) + '</span></div>').join('') + '</div>';
+  return h;
+};
+SHEETS.conditions = () => sheetHd('Conditions') + '<p class="muted">Optional. Skip if you are busy.</p>' + condForm(curInc()) + '<div style="margin-top:10px">' + btn('Log conditions now', 'condLog', 'full') + '</div>';
+SHEETS.origin = () => { const inc = curInc(); return sheetHd('Point of origin') + inp('origin', inc.origin, 'e.g. base of tree, 30 m in from Mahers Rd gate') + '<div style="margin-top:10px">' + btn('Save', 'originSave', 'full go') + '</div>'; };
+SHEETS.log = s => {
+  const inc = curInc(); let h = sheetHd('Log');
+  h += '<div class="row"><div class="grow"><input type="text" id="log_add" data-sbind="text" value="' + esc(s.text || '') + '" placeholder="Add a log entry"></div>' + btn('Log', 'logAdd', 'sm go') + '</div>';
+  h += '<div class="log" style="margin-top:8px">' + inc.log.slice().reverse().map(e => '<div class="e' + (e.late ? ' late' : '') + '"><span class="tm num">' + fmtTS(e.t) + '</span><span>' + esc(e.text) + (e.late ? ' <b>(late note)</b>' : '') + (e.post ? ' <span class="dim">(after handover)</span>' : '') + '</span></div>').join('') + '</div>';
+  return h;
+};
+/* ---- Returning / close out ---- */
+SHEETS.returning = () => {
+  const inc = curInc(); const inside = baInside(inc); const others = inc.apps.filter(a => !a.mine && a.status === 'onscene');
+  let h = sheetHd('Mark ' + inc.myApp + ' returning?');
+  if (inside.length) return h + '<div class="banner amber"><b>Blocked:</b> ' + inside.length + ' BA team(s) still inside. Log them out first.</div>' + btn('Open BA', 'sheet', 'full', { t: 'ba' });
+  h += '<p>This stops the timers and leaves the fireground.</p>';
+  if (inc.mode === 'control' && others.length && !inc.handover) h += '<div class="banner amber">' + others.length + ' appliance(s) still on scene. Who takes control? ' + btn('Hand over control first', 'startHandover', 'sm') + '</div>';
+  h += '<div class="stack" style="margin-top:12px">' + btn('Yes, returning', 'doReturning', 'big danger') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
+  return h;
+};
+SHEETS.closeout = () => sheetHd('Close out incident?') + '<p>Timers are stopped. Close out now, or keep the job open and come back to it.</p><div class="stack">' + btn('Close out incident', 'closeOut', 'big go') + btn('Continue (not closed out)', 'continueLater', 'big') + '</div>';
+
+/* ===== Handover, end of job, export, settings ===== */
+SCREENS.handover = () => {
+  const inc = S.cur; const d = inc.hoDraft; const st = d.step;
+  let h = '<div class="wrap" style="padding-top:calc(12px + env(safe-area-inset-top,0px))"><div class="row" style="justify-content:space-between">' + btn('Cancel', 'hoCancel', 'sm ghost') + '<span class="muted">Hand over control · ' + st + ' of 5</span></div>';
+  h += '<div class="steps">' + [1, 2, 3, 4, 5].map(n => '<i class="' + (n <= st ? 'on' : '') + '"></i>').join('') + '</div>';
+  if (st === 1) {
+    h += '<h1>Who to?</h1><label class="f">Taking control</label><div class="chips">';
+    const ab = areaBrigade(inc); const opts = [];
+    if (ab && ab.name !== S.settings.brigade) opts.push(ab.name); ['FRV', 'VicPol', 'SES', 'FFMVic', 'Ambulance Victoria'].forEach(x => opts.push(x));
+    opts.forEach(o => { h += chip(o, d.to === o, 'hoTo', { v: o }); });
+    h += '</div><input type="text" id="ho_to" data-hbind="to" value="' + esc(d.to || '') + '" placeholder="Brigade or agency" style="margin-top:6px">';
+    h += '<label class="f">Incoming IC name</label><input type="text" id="ho_name" data-hbind="name" value="' + esc(d.name || '') + '" placeholder="Name">';
+    h += '<label class="f">Their appliance</label><div class="chips">' + inc.apps.filter(a => a.status === 'onscene' && !a.mine).map(a => chip(a.callsign, d.app === a.callsign, 'hoApp', { v: a.callsign })).join('') + '</div><input type="text" id="ho_app" data-hbind="app" value="' + esc(d.app || '') + '" placeholder="Appliance" style="margin-top:6px">';
+    h += '<label class="f">New control name (if it changes)</label><input type="text" id="ho_ctl" data-hbind="control" value="' + esc(d.control || controlLabel(inc)) + '">';
+  } else if (st === 2) {
+    h += '<h1>Brief</h1><p class="muted">Built from the log. Talk them through it.</p>';
+    smeacs(inc).forEach(([l, n, items]) => { h += '<div class="card" style="margin-top:6px"><b>' + l + ' · ' + n + '</b><div class="small">' + items.map(esc).join('<br>') + '</div></div>'; });
+    h += '<div class="check' + (d.briefed ? ' done' : '') + '" data-a="hoBriefed" style="margin-top:10px"><span class="bx">' + (d.briefed ? '✓' : '') + '</span><div><b>Briefed</b>' + (d.briefed ? '<div class="small muted">' + fmtT(d.briefed) + '</div>' : '') + '</div></div>';
+  } else if (st === 3) {
+    h += '<h1>Open items</h1><p class="muted">Tick each one as handed over.</p>';
+    const items = openItems(inc);
+    if (!items.length) h += '<p class="dim">Nothing open. Nice and tidy.</p>';
+    items.forEach(it => { const ok = d.items[it]; h += '<div class="check' + (ok ? ' done' : '') + '" data-a="hoItem" data-v="' + esc(it) + '"><span class="bx">' + (ok ? '✓' : '') + '</span><div>' + esc(it) + (ok ? '<div class="small muted">Handed over ' + fmtT(ok) + '</div>' : '') + '</div></div>'; });
+  } else if (st === 4) {
+    const txt = 'FireCom, ' + (d.control || controlLabel(inc)) + ', control handed to ' + (d.name || '[name]') + ', ' + (d.app || d.to || '[appliance]') + '.';
+    h += '<h1>Tell FireCom</h1>' + script(txt);
+    h += '<div style="margin-top:12px">' + (d.sent ? '<p class="green"><b>Sent ' + fmtT(d.sent) + '</b></p>' : btn('Sent', 'hoSent', 'big go')) + '</div>';
+  } else if (st === 5) {
+    h += '<h1>What now for you?</h1><div class="stack">' + btn('Stay as log only', 'hoFinish', 'big', { v: 'logonly' }) + '<p class="small muted">Banner shows you are not in control, timers off, keep logging. "Resume control" if it comes back.</p>' + btn('End tracking', 'hoFinish', 'big go', { v: 'end' }) + '<p class="small muted">Goes to the end-of-job screens. The summary covers up to the handover.</p></div>';
+  }
+  h += '<div class="row" style="margin-top:16px">' + (st > 1 ? btn('Back', 'hoStep', 'grow ghost', { v: -1 }) : '') + (st < 5 ? btn('Next', 'hoStep', 'grow go', { v: 1 }) : '') + '</div>';
+  return h + '</div>';
+};
+function openItems(inc) {
+  const o = [];
+  contractorsOpen(inc).forEach(c => o.push('Contractor: ' + c.type + (c.company ? ' (' + c.company + ')' : '') + ' on scene'));
+  inc.agencies.filter(a => a.status !== 'left').forEach(a => o.push('Agency: ' + a.name + ' ' + AG_ST[a.status].toLowerCase()));
+  inc.roads.filter(r => !r.open).forEach(r => o.push('Road closed: ' + r.road));
+  baInside(inc).forEach(t => o.push('BA team inside: ' + t.name));
+  inc.hazards.filter(x => x.status !== 'removed').forEach(x => o.push('Hazard: ' + x.name + ' (' + x.status + ')'));
+  if (/VicEmergency/i.test(inc.notes)) o.push('VicEmergency 24 hr request');
+  if (/owner to call back/i.test(inc.notes)) o.push('Owner callback');
+  inc.apps.filter(a => !a.mine && ['onscene', 'enroute', 'water', 'rehab'].includes(a.status)).forEach(a => o.push('Appliance: ' + a.callsign + ' ' + ST_LABEL[a.status].toLowerCase()));
+  return o;
+}
+
+/* ---------- End of job ---------- */
+function wrapItems(inc) {
+  const fam = famOf(inc); const L = [];
+  const add = (label, auto, block) => L.push({ label, auto: !!auto, block: !!block });
+  const cOpen = inc.contractors.filter(c => c.status !== 'left');
+  if (inc.contractors.length) add('Contractor departure times logged', !cOpen.length, true);
+  if (inc.contractors.some(c => (c.runs || []).some(r => !r.end))) add('Contractor machines stopped', false, true);
+  add('All appliances accounted for', inc.apps.every(a => ['released', 'cancelled', 'returning'].includes(a.status) || a.brigadeOnly || a.mine));
+  if (inc.roads.length) add('Roads reopened', inc.roads.every(r => r.open));
+  if (inc.agencies.length) add('Agencies left scene', inc.agencies.every(a => a.status === 'left'));
+  if (inc.ba.teams.length) add('All BA teams out', !baInside(inc).length, true);
+  if (inc.hazards.some(x => x.name === 'Power lines')) add('Power company notified', inc.agencies.some(a => a.name === 'Power company'));
+  if (isFire(inc)) add('Point of origin recorded', !!inc.origin);
+  if (fam === 'gs') { add('Edge blacked out / left in black', inc.tactics.some(t => /black/i.test(t.item)) || /black/i.test(inc.notes)); add('Landholder contacted', inc.tactics.some(t => /Landholder/.test(t.item))); }
+  if (fam === 'struc') { add('Power and gas isolated', ['Power isolated', 'Gas isolated'].every(x => inc.tactics.some(t => t.item === x))); add('Search complete / no one inside', inc.tactics.some(t => /search|No one/i.test(t.item))); add('Owner / occupier details', !!inc.summary.owner); }
+  if (fam === 'veh' || fam === 'mva') { add('Fuel / run-off dealt with', inc.tactics.some(t => /Fuel|Run-off/i.test(t.item))); add('Vehicle handed to police / tow', false); }
+  if (fam === 'alarm') add('Alarm reset / keyholder contacted', inc.tactics.some(t => /reset|keyholder/i.test(t.item)));
+  if (fam === 'hazmat') add('EPA / authority notified', inc.tactics.some(t => /EPA/.test(t.item)));
+  add('Crews rehabbed / welfare checked', false);
+  add('Equipment accounted for', false);
+  return L;
+}
+SCREENS.endjob = () => {
+  const inc = S.cur; const st = inc.endStep || 1;
+  let h = '<div class="wrap" style="padding-top:calc(12px + env(safe-area-inset-top,0px))"><div class="row" style="justify-content:space-between">' + btn('Back to incident', 'endBackInc', 'sm ghost') + '<span class="muted">End of job · ' + st + ' of 3</span></div>';
+  h += '<div class="steps">' + [1, 2, 3].map(n => '<i class="' + (n <= st ? 'on' : '') + '"></i>').join('') + '</div>';
+  if (st === 1) {
+    h += '<h1>Wrap-up checklist</h1><p class="muted">Amber = not done yet. Red = must be done before you can finish.</p>';
+    wrapItems(inc).forEach(it => {
+      const ok = it.auto || inc.wrap[it.label];
+      h += '<div class="check' + (ok ? ' done' : it.block ? ' block' : ' miss') + '" data-a="' + (it.block && !it.auto ? 'wrapBlocked' : 'wrapTap') + '" data-v="' + esc(it.label) + '"><span class="bx">' + (ok ? '✓' : '') + '</span><div>' + esc(it.label) + (it.auto ? '<div class="small muted">From the log</div>' : '') + '</div></div>';
+    });
+  } else if (st === 2) {
+    const s = inc.summary;
+    h += '<h1>Summary</h1><div class="card"><dl class="kv"><dt>What</dt><dd>' + esc(wbType(inc) + (inc.kind ? ' · ' + inc.kind : '')) + '</dd><dt>Where</dt><dd>' + esc(titleCase(inc.p.address)) + '</dd><dt>Control</dt><dd>' + esc(controlLabel(inc)) + '</dd><dt>Paged</dt><dd>' + fmtTS(inc.pageTime) + '</dd><dt>On scene</dt><dd>' + fmtTS(inc.onSceneAt) + '</dd>' + (inc.underControlAt ? '<dt>Under control</dt><dd>' + fmtTS(inc.underControlAt) + '</dd>' : '') + (inc.stopAt ? '<dt>Stop</dt><dd>' + fmtTS(inc.stopAt) + '</dd>' : '') + '<dt>Appliances</dt><dd>' + inc.apps.length + '</dd></dl></div>';
+    h += '<label class="f">Property / land use</label><div class="chips">' + ['Residential', 'Farm / rural', 'Grazing', 'Cropping', 'Roadside', 'Commercial', 'Public land', 'Plantation'].map(x => chip(x, s.land === x, 'sumLand', { v: x })).join('') + '</div>';
+    h += '<label class="f">Extinguishing medium</label><div class="chips">' + ['Water', 'Foam', 'Wetting agent', 'Dry chem', 'CO2', 'Earth / machinery', 'Rake hoe', 'None'].map(x => chip(x, (s.medium || []).includes(x), 'sumMed', { v: x })).join('') + '</div>';
+    h += '<label class="f">Hazmat</label>' + inp('summary.hazmat', s.hazmat || '', 'None');
+    h += '<label class="f">Injuries</label>' + inp('summary.injuries', s.injuries, 'None');
+    h += '<label class="f">Owner / occupier</label>' + inp('summary.owner', s.owner || '', 'Name, phone, relationship');
+    h += '<label class="f">Area burnt / damage</label>' + inp('summary.damage', s.damage || '', 'e.g. 2 ha grass, 50 m fence');
+    if (inc.contractors.length) h += '<label class="f">Contractor hours</label><div class="card small">' + inc.contractors.map(c => esc(c.type + (c.company ? ' (' + c.company + ')' : '') + ': on scene ' + fmtT(tOf(c, 'onscene')) + ', left ' + fmtT(tOf(c, 'left')) + ', machine ' + fmtHrs(machineMs(c)))).join('<br>') + '</div>';
+    h += '<label class="f">Notes</label>' + ta('notes', inc.notes, '');
+    if (inc.handover && inc.handover.doneAt) h += '<label class="f">After handover (kept separate)</label>' + ta('afterNotes', inc.afterNotes, 'What happened after you handed over');
+  } else if (st === 3) {
+    h += '<h1>Review and export</h1>';
+    h += exportButtons(inc);
+    h += '<pre class="out" id="exportText">' + esc(exportText(inc)) + '</pre>';
+  }
+  const blocked = st === 1 && wrapItems(inc).some(it => it.block && !it.auto);
+  h += '<div class="row" style="margin-top:16px">' + (st > 1 ? btn('Back', 'endStep', 'grow ghost', { v: -1 }) : '') + (st < 3 ? btn(blocked ? 'Fix red items first' : 'Next', 'endStep', 'grow go', { v: 1 }) : '') + '</div>';
+  return h + '</div>';
+};
+function tOf(x, s) { const e = (x.hist || []).filter(h => h.s === s).pop(); return e ? e.t : null; }
+function exportButtons(inc) {
+  let h = '<div class="stack">';
+  if (!inc.locked) h += btn('Finish and lock', 'lockInc', 'big go');
+  else h += '<div class="lockbar">Locked ' + fmtDT(inc.exportedAt) + '. Late notes get flagged.</div>';
+  h += '<div class="row">' + btn('Copy text (FIRS)', 'expCopy', 'grow') + btn('Share .txt', 'expTxt', 'grow') + btn('PDF', 'expPdf', 'grow') + '</div>';
+  h += '<div class="check' + (inc.firsDone ? ' done' : ' miss') + '" data-a="firsTap"><span class="bx">' + (inc.firsDone ? '✓' : '') + '</span><div>' + (inc.firsDone ? 'FIRS done' : 'To do: FIRS') + '</div></div>';
+  return h + '</div>';
+}
+SCREENS.review = () => {
+  const inc = S.cur;
+  let h = '<div class="wrap" style="padding-top:calc(12px + env(safe-area-inset-top,0px))"><div class="row" style="justify-content:space-between">' + btn('Home', 'goHome', 'sm ghost') + btn('Open dashboard', 'reopenInc', 'sm') + '</div>';
+  h += '<h1>' + esc(inc.name || 'Incident') + '</h1><p class="muted">' + fmtDT(inc.pageTime) + '</p>' + exportButtons(inc);
+  h += '<label class="f">Add a late note</label><div class="row"><div class="grow"><input type="text" id="late_note" data-sbind="late" placeholder="Flagged as a late note"></div>' + btn('Add', 'lateNote', 'sm') + '</div>';
+  h += '<pre class="out" id="exportText">' + esc(exportText(inc)) + '</pre>';
+  h += '<div style="margin-top:16px">' + btn('Delete this incident', 'delInc', 'full danger') + '</div>';
+  return h + '</div>';
+};
+
+/* ---------- Export text ---------- */
+function exportText(inc) {
+  const L = []; const hr = '----------------------------------------';
+  const cut = inc.handover && inc.handover.doneAt ? inc.handover.doneAt : Infinity;
+  L.push('WORDBACK INCIDENT SUMMARY'); L.push(hr);
+  L.push('Incident: ' + (inc.name || '')); L.push('Incident no: ' + (inc.p.incNo || '')); L.push('Date: ' + fmtD(inc.pageTime));
+  L.push('Call type: ' + (inc.p.codeRaw || inc.p.code || '') + ' ' + wbType(inc) + (inc.kind ? ' / ' + inc.kind : ''));
+  L.push('Address: ' + titleCase(inc.p.address || '') + (inc.p.cross && inc.p.cross.length ? ' (x ' + inc.p.cross.map(titleCase).join(' / ') + ')' : ''));
+  if (inc.p.map) L.push('Map: ' + inc.p.map + (inc.p.grid ? ' (' + inc.p.grid + ')' : ''));
+  L.push('Area brigade: ' + (areaBrigade(inc) ? areaBrigade(inc).name : (inc.p.areaCode || '')));
+  L.push('Control: ' + controlLabel(inc) + ' · CP ' + inc.cp.type + (inc.cp.loc ? ': ' + inc.cp.loc : ''));
+  L.push('Fireground: ' + (inc.fg.state === 'confirmed' ? inc.fg.ch : inc.fg.state === 'na' ? 'not available' : 'not needed'));
+  L.push('Prepared by: ' + [S.settings.rank, S.settings.name].filter(Boolean).join(' ') + (S.settings.brigade ? ', ' + S.settings.brigade : '') + ' (' + inc.myApp + ')');
+  if (inc.handover && inc.handover.doneAt) L.push('NOTE: summary covers up to handover at ' + fmtT(inc.handover.doneAt) + '.');
+  L.push(''); L.push('KEY TIMES'); L.push(hr);
+  const kt = [['Paged', inc.pageTime], ['Turning out', tOf(myApp(inc) || {}, 'enroute')], ['On scene', inc.onSceneAt], ['First wordback', inc.wordbacks[0] && inc.wordbacks[0].t], ['Under control', inc.underControlAt], ['Stop', inc.stopAt], ['Handover', inc.handover && inc.handover.doneAt], ['Returning', tOf(myApp(inc) || {}, 'returning')]];
+  kt.forEach(([k, t]) => { if (t) L.push(k.padEnd(16) + fmtTS(t)); });
+  if (inc.conditions && Object.values(inc.conditions).some(Boolean)) { const c = inc.conditions; L.push(''); L.push('Conditions: ' + [c.temp && c.temp + 'C', c.wind && c.wind + ' km/h', c.dir && 'from ' + c.dir, c.rh && c.rh + '% RH', c.notes].filter(Boolean).join(', ')); }
+  if (inc.origin) L.push('Point of origin: ' + inc.origin);
+  L.push(''); L.push('WORDBACKS AND SITREPS'); L.push(hr);
+  [].concat(inc.wordbacks.map(w => [w.t, 'Wordback: ' + w.plain]), inc.sitreps.map(x => [x.t, 'Sitrep: ' + x.text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '')]), inc.messages.map(m => [m.t, 'Message: ' + m.text])).sort((a, b) => a[0] - b[0]).forEach(([t, x]) => L.push(fmtT(t) + ' ' + x));
+  L.push(''); L.push('APPLIANCES'); L.push(hr);
+  inc.apps.forEach(a => { L.push(a.callsign + (a.code ? ' (' + a.code + ')' : '') + (a.crew ? ', crew ' + a.crew : '') + (a.oic ? ', OIC ' + a.oic : '')); L.push('   ' + a.hist.filter(x => x.t <= cut).map(x => ST_LABEL[x.s] + ' ' + fmtT(x.t)).join(', ')); if (a.tasks.length) L.push('   Taskings: ' + a.tasks.map(t => fmtT(t.t) + ' ' + taskText(t)).join('; ')); });
+  if (inc.agencies.length) { L.push(''); L.push('AGENCIES'); L.push(hr); inc.agencies.forEach(a => L.push(a.name + (a.note ? ' (' + a.note + ')' : '') + ': ' + a.hist.map(x => AG_ST[x.s] + ' ' + fmtT(x.t)).join(', '))); }
+  if (inc.contractors.length) { L.push(''); L.push('CONTRACTORS'); L.push(hr); inc.contractors.forEach(c => { L.push(c.type + ': ' + [c.company, c.operator, c.machine].filter(Boolean).join(', ')); L.push('   ' + c.hist.map(x => CON_ST[x.s] + ' ' + fmtT(x.t)).join(', ')); L.push('   Machine hours: ' + fmtHrs(machineMs(c)) + ((c.runs || []).length ? ' (' + c.runs.map(r => fmtT(r.start) + '-' + fmtT(r.end)).join(', ') + ')' : '')); }); }
+  if (inc.roads.length) { L.push(''); L.push('ROAD CLOSURES'); L.push(hr); inc.roads.forEach(r => L.push(r.road + ': closed ' + fmtT(r.closed) + (r.reason ? ' (' + r.reason + ')' : '') + (r.by ? ' by ' + r.by : '') + ', ' + (r.open ? 'reopened ' + fmtT(r.open) + (r.reopenReason ? ' (' + r.reopenReason + ')' : '') : 'NOT REOPENED'))); }
+  if (inc.hazards.length) { L.push(''); L.push('HAZARDS: ' + inc.hazards.map(x => x.name + ' (' + x.status + ')').join(', ')); }
+  if (inc.tactics.length) { L.push(''); L.push('ACTIONS'); L.push(hr); inc.tactics.forEach(t => L.push(fmtT(t.t) + ' ' + t.item + (t.note ? ' (' + t.note + ')' : ''))); }
+  if (inc.ba.teams.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.who || '-') + ', channel ' + (inc.ba.ch || '-') + ', search ' + (inc.ba.pattern || '-') + ', RIT ' + (inc.ba.rit || '-')); inc.ba.teams.forEach(t => L.push(t.name + ' (' + (t.names || '') + '): in ' + fmtT(t.in) + ', out ' + fmtT(t.out))); }
+  if (inc.calls.length) { L.push(''); L.push('PHONE CALLS'); L.push(hr); inc.calls.forEach(c => L.push(fmtT(c.t) + ' ' + c.who + ': ' + c.what)); }
+  const s = inc.summary || {};
+  L.push(''); L.push('END OF JOB'); L.push(hr);
+  L.push('Property / land use: ' + (s.land || '')); L.push('Extinguishing medium: ' + ((s.medium || []).join(', ') || '')); L.push('Hazmat: ' + (s.hazmat || 'None')); L.push('Injuries: ' + (s.injuries || 'None')); L.push('Owner / occupier: ' + (s.owner || '')); if (s.damage) L.push('Area / damage: ' + s.damage);
+  if (inc.notes) { L.push(''); L.push('NOTES'); L.push(hr); L.push(inc.notes); }
+  if (inc.handover && inc.handover.doneAt) { const ho = inc.handover; L.push(''); L.push('HANDOVER'); L.push(hr); L.push('Control handed to ' + ho.name + ' (' + ho.to + (ho.app ? ', ' + ho.app : '') + ') at ' + fmtT(ho.doneAt) + '. Briefed ' + fmtT(ho.briefed) + '.'); Object.keys(ho.items || {}).forEach(k => L.push('   Handed over: ' + k)); }
+  L.push(''); L.push('LOG'); L.push(hr);
+  inc.log.filter(e => !e.post).forEach(e => L.push(fmtTS(e.t) + '  ' + e.text + (e.late ? '  [LATE NOTE ' + fmtDT(e.t) + ']' : '')));
+  const post = inc.log.filter(e => e.post);
+  if (post.length || inc.afterNotes) { L.push(''); L.push('AFTER HANDOVER (separate)'); L.push(hr); post.forEach(e => L.push(fmtTS(e.t) + '  ' + e.text)); if (inc.afterNotes) L.push(inc.afterNotes); }
+  L.push(''); L.push('Exported ' + fmtDT(inc.exportedAt || now()) + ' from Wordback v' + APP_VERSION);
+  return L.join('\n');
+}
+function fileStem(inc) { return 'wordback-' + (inc.p.incNo || fmtD(inc.pageTime).replace(/\//g, '-')) + '-' + (inc.name || 'incident').replace(/[^\w]+/g, '-').slice(0, 30).toLowerCase(); }
+async function shareOrDownload(blob, filename, title) {
+  try {
+    const f = new File([blob], filename, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title }); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return true; }
+  try {
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000); return true;
+  } catch (e) { toast('Could not save the file here'); return false; }
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); toast('Copied'); return; } catch (e) {}
+  const x = document.createElement('textarea'); x.value = t; x.style.position = 'fixed'; x.style.opacity = '0'; document.body.appendChild(x); x.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} x.remove();
+  if (ok) toast('Copied'); else { const pre = $('#exportText'); if (pre) { const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } toast('Text selected. Tap Copy.'); }
+}
+function loadJsPDF() {
+  if (window.jspdf) return Promise.resolve(window.jspdf);
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload = () => res(window.jspdf); s.onerror = rej; document.head.appendChild(s); });
+}
+async function makePdf(inc) {
+  const lib = await loadJsPDF(); const doc = new lib.jsPDF({ unit: 'mm', format: 'a4' });
+  const text = exportText(inc).split('\n'); let y = 16; const left = 14, maxW = 182;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text('Wordback: ' + (inc.name || 'Incident'), left, y); y += 8;
+  doc.setFont('courier', 'normal'); doc.setFontSize(9);
+  text.forEach(line => {
+    const isHead = /^[A-Z][A-Z \/()]+$/.test(line.trim()) && line.trim().length > 2;
+    doc.setFont('courier', isHead ? 'bold' : 'normal');
+    doc.splitTextToSize(line || ' ', maxW).forEach(l => { if (y > 284) { doc.addPage(); y = 14; } doc.text(l, left, y); y += 4.2; });
+  });
+  return doc.output('blob');
+}
+async function backupAll() {
+  const data = { app: 'wordback', version: APP_VERSION, exported: new Date().toISOString(), settings: S.settings, incidents: S.incidents };
+  const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+  const ok = await shareOrDownload(blob, 'wordback-backup-' + new Date().toISOString().slice(0, 10) + '.json', 'Wordback backup');
+  if (ok) { S.settings.lastBackup = now(); saveSettings(); }
+}
+
+/* ---------- Settings ---------- */
+SCREENS.settings = () => {
+  const s = S.settings;
+  let h = '<div class="wrap" style="padding-top:calc(12px + env(safe-area-inset-top,0px))"><div class="row" style="justify-content:space-between">' + btn('Done', 'goHome', 'sm') + '<b>Settings</b><span></span></div>';
+  h += '<h3>You</h3><div class="row"><div class="grow"><label class="f">Name</label><input type="text" id="s_name" data-setbind="name" value="' + esc(s.name) + '" placeholder="Your name"></div><div class="grow"><label class="f">Rank</label><input type="text" id="s_rank" data-setbind="rank" value="' + esc(s.rank) + '"></div></div>';
+  h += '<div class="row"><div class="grow"><label class="f">Brigade</label><input type="text" id="s_brig" data-setbind="brigade" value="' + esc(s.brigade) + '"></div><div class="grow"><label class="f">Home pager code</label><input type="text" id="s_home" data-setbind="homeCode" value="' + esc(s.homeCode) + '"></div></div>';
+  h += '<h3>Appliances</h3><label class="f">My brigade appliances (one per line)</label><textarea id="s_myapps" data-setlist="myAppliances">' + esc(s.myAppliances.join('\n')) + '</textarea>';
+  h += '<label class="f">Default appliance</label><div class="chips">' + s.myAppliances.map(a => chip(a, s.defaultAppliance === a, 'setVal', { k: 'defaultAppliance', v: a })).join('') + '</div>';
+  h += '<h3>Channels</h3><label class="f">Default fireground channel</label><div class="chips">' + s.fgList.map(c => chip(c, s.defaultFg === c, 'setVal', { k: 'defaultFg', v: c })).join('') + '</div>';
+  h += '<label class="f">Fireground channel picker (comma separated)</label><input type="text" id="s_fgl" data-setcsv="fgList" value="' + esc(s.fgList.join(', ')) + '">';
+  h += '<h3>Timers</h3><div class="row">' + numSet('Wordback (min after on scene)', 'wbMin') + numSet('First sitrep (min after wordback)', 'sitrepFirst') + numSet('Repeat sitrep (min)', 'sitrepRepeat') + '</div>';
+  h += '<div class="row">' + numSet('Rehab prompt after (min on scene)', 'rehabWork') + numSet('Rehab (min)', 'rehabLen') + numSet('Rest after rehab (min)', 'rehabRest') + '</div>';
+  h += '<h3>Alerts and screen</h3><div class="chips">' + chip('Alert sound ' + (s.sound ? 'on' : 'off'), s.sound, 'setTog', { k: 'sound' }) + chip('Vibration (Android) ' + (s.vibrate ? 'on' : 'off'), s.vibrate, 'setTog', { k: 'vibrate' }) + chip('Keep screen awake ' + (s.keepAwake ? 'on' : 'off'), s.keepAwake, 'setTog', { k: 'keepAwake' }) + chip('Test alert', false, 'testAlert') + '</div>';
+  h += '<label class="f">Text size</label><div class="chips">' + ['normal', 'large', 'huge'].map(x => chip(titleFirst(x), s.textSize === x, 'setVal', { k: 'textSize', v: x })).join('') + '</div>';
+  h += '<h3>Appliance directory</h3><p class="small muted">Callsign and pager code for type-ahead and pager decoding. Format: Callsign | CODE | Brigade</p><textarea id="s_dir" class="mono small" style="min-height:220px" data-setdir="1">' + esc(s.directory.map(d => d.callsign + ' | ' + d.code + ' | ' + d.brigade).join('\n')) + '</textarea>';
+  h += '<h3>Area brigades and control names</h3><p class="small muted">Format: Brigade | CODE | Control name</p><textarea id="s_brigs" class="mono small" style="min-height:220px" data-setbrig="1">' + esc(s.brigades.map(b => b.name + ' | ' + b.code + ' | ' + b.control).join('\n')) + '</textarea>';
+  h += '<h3>Data</h3><div class="stack">' + btn('Back up all jobs', 'backupAll', '') + '<label class="btn" for="restoreFile" style="display:block">Restore from backup file</label><input type="file" id="restoreFile" accept=".json,application/json" hidden>' + (s.lastBackup ? '<p class="small muted">Last backup ' + fmtDT(s.lastBackup) + '</p>' : '') + btn('Clear all data', 'clearAll', 'danger') + '</div>';
+  h += '<p class="dim small" style="margin-top:16px">Wordback: Incident Management Dashboard · v' + APP_VERSION + ' · updated ' + APP_UPDATED + '</p>';
+  return h + '</div>';
+};
+function numSet(label, k) { return '<div class="grow"><label class="f">' + esc(label) + '</label><input type="number" inputmode="numeric" id="s_' + k + '" data-setnum="' + k + '" value="' + esc(S.settings[k]) + '" min="1"></div>'; }
+
+/* ===== Actions ===== */
+function openSheet(o, push) { if (push && S.sheet) S.sheetStack.push(S.sheet); else if (!push) S.sheetStack = []; S.sheet = o; renderSheet(); }
+function closeSheet() { S.sheet = null; S.sheetStack = []; renderSheet(); }
+function commit(rerender) { if (S.cur) saveInc(); if (rerender !== false) render(); }
+function go(screen) { S.screen = screen; S.sheet = null; S.sheetStack = []; window.scrollTo(0, 0); render(); wakeLock(); }
+function getPath(obj, path) { const seg = path.split('.'); let o = obj; for (let i = 0; i < seg.length - 1; i++) { const k = seg[i]; o = k[0] === '#' ? o.find(x => x.id === k.slice(1)) : (o[k] == null ? (o[k] = {}) : o[k]); if (!o) return [null]; } return [o, seg[seg.length - 1]]; }
+function setPath(obj, path, val) { if (path === 'p.crossText') { obj.p.cross = val.split('/').map(x => x.trim()).filter(Boolean); return; } const [o, k] = getPath(obj, path); if (o) o[k] = val; }
+
+function ensureAgency(inc, name, status) {
+  let a = inc.agencies.find(x => x.name === name && x.status !== 'left');
+  if (!a) { a = { id: uid(), name, short: name === 'Police' ? '5-6' : name === 'Ambulance (AV)' ? 'AV' : name, status: status || 'requested', hist: [{ t: now(), s: status || 'requested' }], note: '' }; inc.agencies.push(a); logE(name + ' ' + AG_ST[a.status].toLowerCase()); }
+  return a;
+}
+function addContractor(inc, type, status) { const c = { id: uid(), type, company: '', operator: '', machine: '', status: status || 'requested', hist: [{ t: now(), s: status || 'requested' }], runs: [] }; inc.contractors.push(c); logE('Contractor (' + type.toLowerCase() + ') ' + CON_ST[c.status].toLowerCase()); return c; }
+function agencyRadioName(a) { return a.name === 'Police' ? '5-6' : a.name === 'Ambulance (AV)' ? 'Ambulance' : a.name; }
+
+const A = {
+  sheetBg(d, el, e) { if (e.target === el) closeSheet(); },
+  closeSheet() { closeSheet(); },
+  sheetBack() { S.sheet = S.sheetStack.pop() || null; renderSheet(); },
+  sheet(d) { const o = { type: d.t }; if (d.id) o.id = d.id; if (d.back) o.back = 1; if (d.t === 'addApp') o.st = 'enroute'; openSheet(o, !!d.back || (S.sheet && (d.t === 'app' || d.t === 'addApp' || d.t === 'smeacs'))); if (S.sheet && S.sheetStack.length) S.sheet.back = 1; renderSheet(); },
+  goHome() { go('home'); },
+  goSettings() { go('settings'); },
+  openInc(d) { S.cur = S.incidents.find(i => i.id === d.id); if (!S.cur) return; if (S.cur.wizStep) { S.wiz = { step: S.cur.wizStep, raw: S.cur.p.raw || '' }; go('wiz'); } else go('inc'); },
+  openPast(d) { S.cur = S.incidents.find(i => i.id === d.id); go('review'); },
+  reopenInc() { go('inc'); },
+  newInc() { const inc = newIncident(S.settings.defaultAppliance); inc.wizStep = 1; addApp(inc, { callsign: inc.myApp, mine: true, code: (S.settings.directory.find(x => x.callsign === inc.myApp) || {}).code }, 'paged'); S.incidents.push(inc); S.cur = inc; S.wiz = { step: 1, raw: '' }; saveInc(); go('wiz'); },
+  backupAll() { backupAll(); },
+
+  /* wizard */
+  wizCancel() { const inc = S.cur; askConfirm('Cancel this new incident?', 'It will be deleted.', 'Delete it', () => { S.incidents = S.incidents.filter(i => i !== inc); DB.del('incidents', inc.id); S.cur = null; go('home'); }); },
+  wizApp(d) { S.cur.myApp = d.v; const m = myApp(S.cur); m.callsign = d.v; m.code = (S.settings.directory.find(x => x.callsign === d.v) || {}).code || ''; commit(); },
+  wizBack() { S.wiz.step = Math.max(1, S.wiz.step - 1); S.cur.wizStep = S.wiz.step; commit(); },
+  wizNext() { const inc = S.cur; if (S.wiz.step === 1) { const m = myApp(inc); m.callsign = inc.myApp; } S.wiz.step++; inc.wizStep = S.wiz.step; window.scrollTo(0, 0); commit(); },
+  async wizPaste() { try { const t = await navigator.clipboard.readText(); if (t) { $('#pager').value = t; S.wiz.raw = t; A.wizDecode(); return; } } catch (e) {} toast('Long-press in the box and choose Paste'); $('#pager').focus(); },
+  wizDecode() {
+    const inc = S.cur; const raw = ($('#pager') || {}).value || S.wiz.raw || '';
+    if (!raw.trim()) { toast('Paste the pager message first'); return; }
+    const p = parsePager(raw); if (!p.ok) toast('Could not read all of that. Check the details.');
+    if (!p.code) p.code = 'INCIC';
+    inc.p = p; inc.pageTime = now(); inc.name = niceName(p); inc.kind = pickKind(p.code, p.details);
+    inc.apps = inc.apps.filter(a => a.mine);
+    pagedToAppliances(p, inc.myApp).forEach(o => addApp(inc, o, 'paged'));
+    const m = myApp(inc); if (m.status === 'paged') setAppStatus(inc, m, 'enroute'); // auto-log turning out
+    logE('Pager: ' + p.raw);
+    S.wiz.step = 3; inc.wizStep = 3; S.wiz.raw = raw; window.scrollTo(0, 0); commit();
+  },
+  wizSkipPager() { const inc = S.cur; inc.p = Object.assign(parsePager(''), { code: 'INCIC', resp: '3' }); const m = myApp(inc); if (m.status === 'paged') setAppStatus(inc, m, 'enroute'); S.wiz.step = 3; inc.wizStep = 3; commit(); },
+  pageAdj(d) { S.cur.pageTime += Number(d.v) * 60000; commit(); },
+  wizRmApp(d) { S.cur.apps = S.cur.apps.filter(a => a.id !== d.id); commit(); },
+  wizKind(d) { S.cur.kind = d.v; commit(); },
+  wizStart(d) {
+    const inc = S.cur; delete inc.wizStep; inc.mode = 'control';
+    if (!inc.controlName) inc.controlName = defaultControl(inc);
+    logE('Incident started: ' + (inc.name || '') + (inc.kind ? ' (' + inc.kind + ')' : ''));
+    if (d.v === 'support') { inc.mode = 'support'; inc.supportOf = defaultControl(inc); logE('Support mode, not in control'); }
+    go('inc');
+    if (d.v === 'onscene') A.myOnScene();
+    saveInc();
+  },
+
+  /* incident */
+  myEnroute() { setAppStatus(S.cur, myApp(S.cur), 'enroute'); commit(); },
+  myOnScene() {
+    const inc = S.cur;
+    if (inc.mode !== 'control') { const m = myApp(inc); setAppStatus(inc, m, 'onscene'); if (!inc.onSceneAt) inc.onSceneAt = now(); commit(); return; }
+    openSheet({ type: 'onscene', d: { control: inc.controlName || defaultControl(inc), fgState: inc.fg.state || 'confirmed', ch: inc.fg.ch || S.settings.defaultFg, cpType: inc.cp.type || 'static', cpLoc: inc.cp.loc || '' } });
+  },
+  osCtl(d) { S.sheet.d.control = d.v; renderSheet(); },
+  osFg(d) { S.sheet.d.fgState = d.v; renderSheet(); },
+  osCh(d) { S.sheet.d.ch = d.v; renderSheet(); },
+  osCp(d) { S.sheet.d.cpType = d.v; if (d.v === 'dynamic' && !S.sheet.d.cpLoc) S.sheet.d.cpLoc = S.cur.myApp; renderSheet(); },
+  osSent() {
+    const inc = S.cur, d = S.sheet.d, t = now();
+    inc.controlName = d.control; inc.fg = { state: d.fgState, ch: d.ch }; inc.cp = { type: d.cpType, loc: d.cpLoc };
+    const m = myApp(inc);
+    if (!inc.onSceneAt) inc.onSceneAt = t;
+    if (m.status !== 'onscene') setAppStatus(inc, m, 'onscene');
+    logE('On scene. Now known as ' + d.control + '. ' + (d.fgState === 'confirmed' ? 'Fireground ' + d.ch + '.' : d.fgState === 'na' ? 'Fireground channel not available.' : 'Fireground channel not needed.') + ' Control point ' + d.cpType + (d.cpLoc ? ': ' + d.cpLoc : '') + '.');
+    closeSheet(); commit();
+  },
+  takeControl() { const inc = S.cur; inc.mode = 'control'; logE('Took control'); inc.timersStopped = false; A.myOnScene(); commit(false); },
+  resumeControl() { const inc = S.cur; inc.mode = 'control'; inc.timersStopped = false; logE('Resumed control'); commit(); },
+  timerTap() { const inc = S.cur; const di = dueInfo(inc); if (!di) return; if (di.due <= now()) { inc.ack = di.due; saveInc(); } if (di.kind === 'wordback') A.openWb(); else A.openSitrep(); },
+  remTap(d) {
+    const inc = S.cur;
+    if (d.k === 'rehab') { const a = findApp(d.id); askConfirm(a.callsign + ' crew due rehab', 'Send the crew to rehab (' + (S.settings.rehabLen || 20) + ' min rehab + ' + S.settings.rehabRest + ' min rest)?', 'Crew to rehab', () => { setAppStatus(inc, a, 'rehab'); closeSheet(); commit(); }, 'go'); S.sheet.alt = { label: 'Remind me in 10 min', id: a.id }; renderSheet(); return; }
+    if (d.k === 'rehabback') { const a = findApp(d.id); setAppStatus(inc, a, 'onscene'); commit(); return; }
+    if (d.k === 'arrivals') { const names = inc.unreported.map(id => (findApp(id) || {}).callsign).filter(Boolean); radioPrompt({ title: 'Report arrivals', text: 'FireCom, ' + controlLabel(inc) + ', message: ' + names.join(', ') + ' on scene.', later: false }, () => { inc.messages.push({ t: now(), text: names.join(', ') + ' on scene' }); logE('Message to FireCom: ' + names.join(', ') + ' on scene'); inc.unreported = []; }); return; }
+    if (d.k === 'msg') { const r = inc.remind.find(x => x.id === d.id); if (!r) return; radioPrompt({ title: 'Message', text: r.script, later: false }, () => { inc.remind = inc.remind.filter(x => x !== r); inc.messages.push({ t: now(), text: r.plain }); logE('Message to FireCom: ' + r.plain); }); return; }
+    if (d.k === 'rit') { openSheet({ type: 'ba' }); return; }
+    if (d.k === 'handover') { A.startHandover(); return; }
+  },
+  confirmYes() { const cb = confirmCb; confirmCb = null; if (cb) cb(); else closeSheet(); },
+  confirmAlt() { const a = findApp(S.sheet.alt.id); a.rehabDue = now() + 10 * 60000; closeSheet(); commit(); },
+  radioSent() { const cb = radioCb; radioCb = null; if (cb) cb(); closeSheet(); commit(); },
+  radioLater() { const s = S.sheet; S.cur.remind.push({ id: uid(), text: 'Tell FireCom: ' + s.plain, script: s.text, plain: s.plain }); radioCb = null; closeSheet(); commit(); },
+
+  /* appliances */
+  addSt(d) { S.sheet.st = d.v; renderSheet(); },
+  addPick(d) { const inc = S.cur; const a = addApp(inc, { callsign: d.cs, code: d.code }, 'paged'); if (S.sheet.st !== 'paged') setAppStatus(inc, a, S.sheet.st); else logE(a.callsign + ' added (paged)'); toast(d.cs + ' added'); S.sheet.q = ''; commit(); },
+  addCustom() { const inc = S.cur; const q = (S.sheet.q || '').trim(); if (!q) return; const d = dirByCode(q.toUpperCase()); const a = addApp(inc, d ? { callsign: d.callsign, code: d.code } : { callsign: q, code: /^[A-Z0-9]{3,7}$/.test(q) ? q : '' }, 'paged'); if (S.sheet.st !== 'paged') setAppStatus(inc, a, S.sheet.st); else logE(a.callsign + ' added (paged)'); S.sheet.q = ''; toast(a.callsign + ' added'); commit(); },
+  appSt(d) {
+    const inc = S.cur, a = findApp(d.id);
+    if (a.mine && d.v === 'returning') { openSheet({ type: 'returning' }); return; }
+    if (a.mine && d.v === 'onscene' && !inc.onSceneAt) { A.myOnScene(); return; }
+    if (d.v === 'released') { askConfirm('Release ' + a.callsign + '?', 'They leave the fireground.', 'Release', () => { setAppStatus(inc, a, 'released'); if (a.task) a.task = null; closeSheet(); commit(); }, 'warn'); return; }
+    if (d.v === 'water') {
+      const left = inc.apps.filter(x => x !== a && (x.status === 'onscene') && !x.frv && !x.brigadeOnly);
+      if (!left.length) { askConfirm('Last tanker on scene', a.callsign + ' is the last tanker on scene. Sending it for water leaves no tanker on the fireground.', 'Send anyway', () => { setAppStatus(inc, a, 'water'); closeSheet(); commit(); }, 'warn'); return; }
+    }
+    setAppStatus(inc, a, d.v); commit();
+  },
+  crewAdj(d) { const a = findApp(d.id); a.crew = String(Math.max(0, (Number(a.crew) || 0) + Number(d.v))); if (a.crew === '0') a.crew = ''; saveInc(); renderSheet(); },
+  tkType(d) { const s = S.sheet; const a = findApp(s.id); s.task = s.task || (a.task ? clone(a.task) : {}); s.task.type = d.v; if (d.v !== 'attack') { delete s.task.sub; delete s.task.lines; } renderSheet(); },
+  tkSub(d) { S.sheet.task.sub = d.v; renderSheet(); },
+  tkMore() { S.sheet.more = true; renderSheet(); },
+  tkLines(d) { S.sheet.task.lines = S.sheet.task.lines === Number(d.v) ? 0 : Number(d.v); renderSheet(); },
+  tkSave(d) { const inc = S.cur, a = findApp(d.id); const t = Object.assign({}, S.sheet.task, { t: now() }); if (!t.type) return; a.task = t; a.tasks.push(t); logE(a.callsign + ' tasked: ' + taskText(t)); S.sheet.task = null; toast('Tasking saved'); commit(); },
+  appRemove(d) { const inc = S.cur; const a = findApp(d.id); askConfirm('Remove ' + a.callsign + '?', 'Only for appliances added by mistake. Use Released for trucks leaving.', 'Remove', () => { inc.apps = inc.apps.filter(x => x !== a); logE(a.callsign + ' removed (added in error)'); closeSheet(); commit(); }); },
+
+  /* wordback */
+  openWb() { const inc = S.cur; openSheet({ type: 'wordback', d: { status: '', res: [], tankers: 2 } }); },
+  openWbRes() { openSheet({ type: 'wordback', d: { status: lastWbStatus(S.cur) || 'nyuc', res: [], tankers: 2 } }); },
+  quickWb(d) { openSheet({ type: 'wordback', d: { status: d.v, res: [], tankers: 2 } }); },
+  wbSt(d) { S.sheet.d.status = d.v; renderSheet(); },
+  wbRes(d) { const r = S.sheet.d.res; const i = r.indexOf(d.v); if (i >= 0) r.splice(i, 1); else r.push(d.v); renderSheet(); },
+  wbTank(d) { S.sheet.d.tankers = Number(d.v); renderSheet(); },
+  wbCon(d) { S.sheet.d.contractorType = d.v; renderSheet(); },
+  wbSent() {
+    const inc = S.cur, d = S.sheet.d, t = now(); if (!d.status) return;
+    const st = WB_STATUS[d.status];
+    const req = d.res.map(k => { const r = RES.find(x => x.k === k); if (k === 'tankers') return 'make tankers ' + d.tankers; if (k === 'contractor') return 'contractor' + (d.contractorType ? ' (' + d.contractorType.toLowerCase() + ')' : ''); return r.plain; });
+    const plain = st.plain + (d.desc ? ' (' + d.desc + ')' : '') + (req.length ? '. Requested: ' + req.join(', ') : '');
+    inc.wordbacks.push({ t, status: d.status, res: d.res.slice(), plain, script: wbScript(inc, d) });
+    logE('Wordback: ' + plain);
+    if (!inc.sitreps.length) inc.sitrepDue = t + S.settings.sitrepFirst * 60000;
+    d.res.forEach(k => { const r = RES.find(x => x.k === k); if (r.agency) ensureAgency(inc, r.agency, 'requested'); if (r.contractor) addContractor(inc, d.contractorType || 'Other', 'requested'); });
+    if (d.status === 'uc' && !inc.underControlAt) inc.underControlAt = t;
+    if (['stop', 'falsealarm', 'noaction'].includes(d.status)) {
+      if (!inc.stopAt) { inc.stopAt = t; inc.stopVariant = st.label; }
+      inc.apps.forEach(a => { if (!a.mine && (a.status === 'enroute' || a.status === 'paged')) setAppStatus(inc, a, 'cancelled'); });
+    }
+    closeSheet(); commit();
+  },
+  /* sitrep / message */
+  openSitrep() { const inc = S.cur; const prev = inc.sitreps[inc.sitreps.length - 1]; openSheet({ type: 'sitrep', d: { f: prev ? clone(prev.f || {}) : {}, threat: prev ? (prev.threat || []).slice() : [], useTasks: true, useChanges: true, potential: '', eta: '' } }); },
+  srPick(d) { const f = S.sheet.d.f; f[d.k] = f[d.k] === d.v ? '' : d.v; renderSheet(); },
+  srThreat(d) { const r = S.sheet.d.threat; const i = r.indexOf(d.v); if (i >= 0) r.splice(i, 1); else { if (d.v === 'Nil') r.length = 0; else { const n = r.indexOf('Nil'); if (n >= 0) r.splice(n, 1); } r.push(d.v); } renderSheet(); },
+  srEta(d) { S.sheet.d.eta = S.sheet.d.eta === d.v ? '' : d.v; renderSheet(); },
+  srTog(d) { S.sheet.d[d.v] = !S.sheet.d[d.v]; renderSheet(); },
+  srSent() { const inc = S.cur, d = S.sheet.d, t = now(); const text = sitrepText(inc, d); inc.sitreps.push({ t, text, f: clone(d.f), threat: d.threat.slice() }); logE('Sitrep: ' + text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '')); inc.sitrepDue = t + S.settings.sitrepRepeat * 60000; closeSheet(); commit(); },
+  openMsg() { openSheet({ type: 'message', d: { text: '' } }); },
+  msgSent() { const inc = S.cur, d = S.sheet.d; if (!d.text) return; inc.messages.push({ t: now(), text: d.text }); logE('Message to FireCom: ' + d.text); closeSheet(); commit(); },
+
+  /* agencies */
+  agAdd(d) { ensureAgency(S.cur, d.v, 'requested'); commit(); },
+  agAddCustom() { const v = (S.sheet.custom || '').trim(); if (!v) return; ensureAgency(S.cur, v, 'requested'); S.sheet.custom = ''; commit(); },
+  agSt(d) {
+    const inc = S.cur; const a = inc.agencies.find(x => x.id === d.id); if (a.status === d.v) return;
+    a.status = d.v; a.hist.push({ t: now(), s: d.v }); logE(a.name + ' ' + AG_ST[d.v].toLowerCase());
+    if (a.name === 'Police' && d.v === 'onscene') inc.hazards.forEach(h => { if (h.name === 'Traffic' && h.status === 'identified') { h.status = 'managed'; logE('Traffic hazard managed (5-6 on scene)'); } });
+    commit();
+    if (d.v === 'onscene' && inc.mode === 'control') { const nm = agencyRadioName(a); radioPrompt({ title: a.name + ' on scene', text: 'FireCom, ' + controlLabel(inc) + ', message: ' + nm + ' on scene.', plain: a.name + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: a.name + ' on scene' }); logE('Message to FireCom: ' + a.name + ' on scene'); }); }
+    if (d.v === 'left' && a.name === 'Police' && inc.roads.some(r => !r.open)) askConfirm('Road reopened?', '5-6 has left but a road is still logged as closed.', 'Open road closures', () => { openSheet({ type: 'hazards' }); }, 'go');
+  },
+  /* hazards + roads */
+  rdReason(d) { S.sheet.reason = d.v; renderSheet(); },
+  rdBy(d) { S.sheet.by = d.v; renderSheet(); },
+  roadClose() { const inc = S.cur, s = S.sheet; const road = (s.road || titleCase(roadName(inc.p)) || '').trim(); if (!road) { toast('Which road?'); return; } inc.roads.push({ id: uid(), road, reason: s.reason || '', by: s.by || '', closed: now(), open: null }); logE('Road closed: ' + road + (s.reason ? ' (' + s.reason + ')' : '') + (s.by ? ', by ' + s.by : '')); s.road = ''; s.reason = ''; s.by = ''; if (!inc.agencies.some(a => a.name === 'Police')) toast('Remember to request 5-6 for traffic'); commit(); },
+  roadOpen(d) { const r = S.cur.roads.find(x => x.id === d.id); r.open = now(); logE('Road reopened: ' + r.road + (r.reopenReason ? ' (' + r.reopenReason + ')' : '')); commit(); },
+  hzTap(d) {
+    const inc = S.cur; let h = inc.hazards.find(x => x.name === d.v);
+    if (!h) { h = { name: d.v, status: 'identified', t: now() }; inc.hazards.push(h); if (d.v === 'Traffic' && inc.agencies.some(a => a.name === 'Police' && a.status === 'onscene')) h.status = 'managed'; logE('Hazard: ' + d.v + ' (' + h.status + ')'); if (d.v === 'Power lines' && !inc.agencies.some(a => a.name === 'Power company')) { commit(); askConfirm('Power lines', 'Notify the power company? Adds them to Agencies as requested.', 'Request power company', () => { ensureAgency(inc, 'Power company', 'requested'); openSheet({ type: 'hazards' }); commit(); }, 'go'); return; } }
+    else { h.status = h.status === 'identified' ? 'managed' : h.status === 'managed' ? 'removed' : 'identified'; logE('Hazard: ' + d.v + ' ' + h.status); }
+    commit();
+  },
+  hzAdd() { const v = (S.sheet.hz || '').trim(); if (!v) return; S.cur.hazards.push({ name: v, status: 'identified', t: now() }); logE('Hazard: ' + v + ' (identified)'); S.sheet.hz = ''; commit(); },
+  /* tactics */
+  tacTap(d) {
+    const inc = S.cur; const i = inc.tactics.findIndex(x => x.item === d.v);
+    if (i >= 0) { askConfirm('Untick "' + d.v + '"?', 'Removes it from the actions list. The log keeps a record.', 'Untick', () => { inc.tactics.splice(i, 1); logE('Action unticked: ' + d.v); openSheet({ type: 'tactics' }); commit(); }, 'warn'); return; }
+    if (d.v === 'No one inside') { S.sheet.noone = { how: '' }; renderSheet(); return; }
+    inc.tactics.push({ item: d.v, t: now() }); logE('Action: ' + d.v); commit();
+  },
+  nooneHow(d) { S.sheet.noone.how = d.v; renderSheet(); },
+  nooneSave() { const n = S.sheet.noone; if (!n.how) { toast('Search or verbal?'); return; } const note = n.how === 'search' ? 'confirmed by search' : 'verbal from ' + (n.name || '?') + ' (' + (n.rel || '?') + ')'; S.cur.tactics.push({ item: 'No one inside', t: now(), note }); logE('No one inside: ' + note); S.sheet.noone = null; commit(); },
+  tacCustom() { const v = (S.sheet.custom || '').trim(); if (!v) return; S.cur.tactics.push({ item: v, t: now() }); logE('Action: ' + v); S.sheet.custom = ''; commit(); },
+  /* contractors */
+  conAdd(d) { addContractor(S.cur, d.v, 'requested'); commit(); },
+  conSt(d) {
+    const inc = S.cur; const c = inc.contractors.find(x => x.id === d.id); if (c.status === d.v) return;
+    if (d.v === 'left' && (c.runs || []).some(r => !r.end)) { const r = c.runs.find(r => !r.end); r.end = now(); logE('Contractor ' + c.type.toLowerCase() + ' machine stopped'); }
+    c.status = d.v; c.hist.push({ t: now(), s: d.v }); logE('Contractor ' + c.type.toLowerCase() + (c.company ? ' (' + c.company + ')' : '') + ' ' + CON_ST[d.v].toLowerCase());
+    commit();
+    if (d.v === 'onscene' && inc.mode === 'control') radioPrompt({ title: 'Contractor on scene', text: 'FireCom, ' + controlLabel(inc) + ', message: contractor ' + c.type.toLowerCase() + ' on scene.', plain: 'contractor ' + c.type.toLowerCase() + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: 'Contractor ' + c.type.toLowerCase() + ' on scene' }); logE('Message to FireCom: contractor ' + c.type.toLowerCase() + ' on scene'); });
+  },
+  conRun(d) { const c = S.cur.contractors.find(x => x.id === d.id); c.runs = c.runs || []; const r = c.runs.find(r => !r.end); if (r) { r.end = now(); logE('Contractor ' + c.type.toLowerCase() + ' machine stopped (' + fmtHrs(machineMs(c)) + ' total)'); } else { c.runs.push({ start: now(), end: null }); logE('Contractor ' + c.type.toLowerCase() + ' machine started'); } commit(); },
+  /* BA */
+  baCtl() { const b = S.cur.ba; b.control = !b.control; logE(b.control ? 'BA control established' + (b.who ? ': ' + b.who : '') : 'BA control stood down'); commit(); },
+  baPat(d) { S.cur.ba.pattern = d.v; logE('BA search pattern: ' + d.v.toLowerCase()); commit(); },
+  baRit() { const v = (S.sheet.rit || '').trim(); if (!v) { toast('Who is RIT?'); return; } S.cur.ba.rit = v; logE('RIT: ' + v); commit(); },
+  baRitNA() { S.cur.ba.rit = 'RIT not available'; logE('RIT not available'); commit(); },
+  baRitClear() { S.cur.ba.rit = ''; commit(); },
+  baAdd() { const b = S.cur.ba; b.teams.push({ id: uid(), name: 'Team ' + (b.teams.length + 1), names: '', in: null, out: null }); commit(); },
+  baIn(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.in = now(); logE('BA ' + t.name + ' entered' + (t.names ? ' (' + t.names + ')' : '')); commit(); },
+  baOut(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.out = now(); logE('BA ' + t.name + ' exited (' + fmtDur(t.out - t.in) + ')'); commit(); },
+  /* signals, notes, misc */
+  sigTap(d) { const inc = S.cur; const s = SIGNALS.find(x => x[0] === d.v); radioPrompt({ title: 'Radio signal ' + s[0], text: 'FireCom, ' + controlLabel(inc) + ', radio signal ' + s[0] + '.', plain: s[2], later: false }, () => { logE(s[2]); if (s[0] === '5-6' || s[0] === '4-0') ensureAgency(inc, 'Police', 'requested'); }); },
+  noteIns(d) { const inc = S.cur; inc.notes = (inc.notes ? inc.notes.replace(/\s*$/, '') + '\n' : '') + d.v; logE('Note: ' + d.v.replace(/:\s*$/, '')); commit(); renderSheet(); const t = $('#f_notes'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } },
+  callLog() { const s = S.sheet; if (!s.who && !s.what) return; S.cur.calls.push({ t: now(), who: s.who || '', what: s.what || '' }); logE('Phone call with ' + (s.who || '?') + ': ' + (s.what || '')); s.who = ''; s.what = ''; commit(); },
+  condLog() { const c = S.cur.conditions; logE('Conditions: ' + [c.temp && c.temp + 'C', c.wind && c.wind + ' km/h', c.dir && 'from ' + c.dir, c.rh && c.rh + '% RH', c.notes].filter(Boolean).join(', ')); closeSheet(); commit(); },
+  originSave() { logE('Point of origin: ' + S.cur.origin); closeSheet(); commit(); },
+  logAdd() { const v = (S.sheet.text || '').trim(); if (!v) return; logE(v); S.sheet.text = ''; commit(); },
+  /* end */
+  endIncident() { const inc = S.cur; if (!inc.timersStopped && myApp(inc) && myApp(inc).status !== 'returning') openSheet({ type: 'returning' }); else openSheet({ type: 'closeout' }); },
+  doReturning() { const inc = S.cur; const m = myApp(inc); setAppStatus(inc, m, 'returning'); inc.timersStopped = true; inc.timersStoppedAt = now(); logE('Timers stopped'); saveInc(); render(); openSheet({ type: 'closeout' }); },
+  closeOut() { const inc = S.cur; inc.status = 'active'; inc.timersStopped = true; inc.endStep = 1; go('endjob'); saveInc(); },
+  continueLater() { const inc = S.cur; inc.status = 'continue'; logE('Left open (not closed out)'); saveInc(); go('home'); },
+  endBackInc() { go('inc'); },
+  endStep(d) { const inc = S.cur; if (Number(d.v) > 0 && inc.endStep === 1 && wrapItems(inc).some(it => it.block && !it.auto)) { toast('Log contractor departure / BA out first'); return; } inc.endStep = Math.min(3, Math.max(1, (inc.endStep || 1) + Number(d.v))); window.scrollTo(0, 0); commit(); },
+  wrapTap(d) { const inc = S.cur; if (inc.wrap[d.v]) delete inc.wrap[d.v]; else inc.wrap[d.v] = now(); commit(); },
+  wrapBlocked(d) { go('inc'); openSheet({ type: /BA/.test(d.v) ? 'ba' : 'contractors' }); toast('Log it here, then come back to End incident'); },
+  sumLand(d) { S.cur.summary.land = S.cur.summary.land === d.v ? '' : d.v; commit(); },
+  sumMed(d) { const m = S.cur.summary.medium = S.cur.summary.medium || []; const i = m.indexOf(d.v); if (i >= 0) m.splice(i, 1); else m.push(d.v); if (!S.cur.summary.mediumLogged) { S.cur.summary.mediumLogged = 1; } commit(); },
+  lockInc() { const inc = S.cur; logE('Exported and locked'); inc.locked = true; inc.exportedAt = now(); inc.status = 'closed'; inc.timersStopped = true; commit(); toast('Locked. Now copy, share or PDF it.'); },
+  expCopy() { copyText(exportText(S.cur)); },
+  expTxt() { const inc = S.cur; shareOrDownload(new Blob([exportText(inc)], { type: 'text/plain' }), fileStem(inc) + '.txt', inc.name); },
+  async expPdf() { const inc = S.cur; toast('Building PDF...'); try { const b = await makePdf(inc); shareOrDownload(b, fileStem(inc) + '.pdf', inc.name); } catch (e) { toast('PDF needs the PDF tool loaded once while online'); } },
+  firsTap() { const inc = S.cur; inc.firsDone = !inc.firsDone; commit(); },
+  lateNote() { const v = (($('#late_note') || {}).value || '').trim(); if (!v) return; logE(v); commit(); toast('Late note added'); },
+  delInc() { const inc = S.cur; askConfirm('Delete this incident?', 'This cannot be undone. Back it up first if you might need it.', 'Delete', () => { S.incidents = S.incidents.filter(i => i !== inc); DB.del('incidents', inc.id); S.cur = null; go('home'); }); },
+  /* handover */
+  startHandover() { const inc = S.cur; const ab = areaBrigade(inc); inc.hoDraft = inc.hoDraft && !inc.hoDraft.done ? inc.hoDraft : { step: 1, to: ab && ab.name !== S.settings.brigade ? ab.name : '', name: '', app: '', control: controlLabel(inc), briefed: null, items: {}, sent: null }; go('handover'); saveInc(); },
+  hoCancel() { S.cur.hoDismissed = true; go('inc'); saveInc(); },
+  hoTo(d) { S.cur.hoDraft.to = d.v; commit(); },
+  hoApp(d) { S.cur.hoDraft.app = d.v; commit(); },
+  hoBriefed() { const d = S.cur.hoDraft; d.briefed = d.briefed ? null : now(); if (d.briefed) logE('Handover brief given to ' + (d.name || d.to)); commit(); },
+  hoItem(d) { const it = S.cur.hoDraft.items; if (it[d.v]) delete it[d.v]; else it[d.v] = now(); commit(); },
+  hoStep(d) { const h = S.cur.hoDraft; if (Number(d.v) > 0 && h.step === 1 && !h.to) { toast('Who is taking control?'); return; } if (Number(d.v) > 0 && h.step === 4 && !h.sent) { toast('Tap Sent once you have told FireCom'); return; } h.step = Math.min(5, Math.max(1, h.step + Number(d.v))); window.scrollTo(0, 0); commit(); },
+  hoSent() { const inc = S.cur, d = inc.hoDraft; d.sent = now(); logE('Control handed to ' + (d.name || '?') + ' (' + d.to + (d.app ? ', ' + d.app : '') + ')' + (d.control && d.control !== controlLabel(inc) ? ', now ' + d.control : '')); inc.handover = Object.assign({}, d, { doneAt: d.sent }); if (d.control) inc.controlName = d.control; commit(); },
+  hoFinish(d) { const inc = S.cur; inc.hoDraft.done = true; if (d.v === 'logonly') { inc.mode = 'logonly'; logE('Staying as log only'); go('inc'); } else { inc.mode = 'logonly'; inc.timersStopped = true; logE('Stopped tracking after handover'); inc.endStep = 1; go('endjob'); } saveInc(); },
+  /* settings */
+  setVal(d) { S.settings[d.k] = d.v; saveSettings(); applySettings(); render(); },
+  setTog(d) { S.settings[d.k] = !S.settings[d.k]; saveSettings(); applySettings(); render(); },
+  testAlert() { alertBuzz(); },
+  clearAll() { askConfirm('Clear all data?', 'Deletes every incident and your settings on this device.', 'Yes, continue', () => { askConfirm('Are you really sure?', 'Last chance. Back up first if you need anything.', 'Delete everything', async () => { await DB.clear(); S.incidents = []; S.settings = clone(DEFAULT_SETTINGS); S.cur = null; applySettings(); go('home'); toast('All data cleared'); }); }); }
+};
+
+/* ===== Events, bindings, boot ===== */
+SHEETS.confirm = s => sheetHd(s.title) + '<p>' + s.body + '</p><div class="stack" style="margin-top:12px">' + btn(esc(s.yes), 'confirmYes', 'big ' + s.cls) + (s.alt ? btn(esc(s.alt.label), 'confirmAlt', 'big') : '') + btn('Cancel', 'closeSheet', 'big ghost') + '</div>';
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const fn = A[el.dataset.a]; if (!fn) return;
+  if (el.dataset.a !== 'sheetBg') e.preventDefault();
+  try { fn(el.dataset, el, e); } catch (err) { console.error(err); toast('Something went wrong: ' + err.message); }
+});
+function patchSheetLive() {
+  // re-render the sheet off-screen and patch only live parts so the focused input keeps focus
+  if (!S.sheet) return; const def = SHEETS[S.sheet.type]; if (!def) return;
+  const tmp = document.createElement('div'); tmp.innerHTML = typeof def === 'function' ? def(S.sheet) : def.html(S.sheet);
+  ['scr', 'addlist'].forEach(id => { const a = tmp.querySelector('#' + id), b = document.getElementById(id); if (a && b && a.innerHTML !== b.innerHTML) b.innerHTML = a.innerHTML; });
+}
+document.addEventListener('input', e => {
+  const el = e.target; const ds = el.dataset; const v = el.value;
+  if (el.id === 'pager') { if (S.wiz) S.wiz.raw = v; return; }
+  if (ds.bind && S.cur) { setPath(S.cur, ds.bind, v); saveSoon(); patchSheetLive(); return; }
+  if (ds.sbind && S.sheet) { setPath(S.sheet, ds.sbind, v); patchSheetLive(); return; }
+  if (ds.hbind && S.cur && S.cur.hoDraft) { S.cur.hoDraft[ds.hbind] = v; saveSoon(); return; }
+  if (ds.setbind) { S.settings[ds.setbind] = v; saveSettings(); return; }
+  if (ds.setnum) { const n = Number(v); if (n > 0) { S.settings[ds.setnum] = n; saveSettings(); } return; }
+  if (ds.setcsv) { S.settings[ds.setcsv] = v.split(',').map(x => x.trim()).filter(Boolean); saveSettings(); return; }
+  if (ds.setlist) { S.settings[ds.setlist] = v.split('\n').map(x => x.trim()).filter(Boolean); saveSettings(); return; }
+  if (ds.setdir) { S.settings.directory = v.split('\n').map(l => l.split('|').map(x => x.trim())).filter(p => p[0]).map(p => ({ callsign: p[0], code: (p[1] || '').toUpperCase(), brigade: p[2] || '' })); saveSettings(); return; }
+  if (ds.setbrig) { S.settings.brigades = v.split('\n').map(l => l.split('|').map(x => x.trim())).filter(p => p[0] && p[1]).map(p => ({ name: p[0], code: p[1].toUpperCase(), control: p[2] || p[0] + ' Control' })); saveSettings(); return; }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'pageTime') { const t = new Date(el.value).getTime(); if (!isNaN(t)) { S.cur.pageTime = t; saveInc(); } return; }
+  if (el.id === 'restoreFile') { restoreFrom(el.files[0]); el.value = ''; return; }
+  if (el.dataset.bind && S.cur) { setPath(S.cur, el.dataset.bind, el.value); if (el.dataset.bind === 'p.code') S.cur.kind = pickKind(el.value, S.cur.p.details || ''); saveInc(); if (el.dataset.rerender) render(); }
+  if (el.dataset.setlist || el.dataset.setcsv) render();
+});
+async function restoreFrom(file) {
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== 'wordback' || !Array.isArray(data.incidents)) throw new Error('Not a Wordback backup');
+    askConfirm('Restore backup?', 'Adds ' + data.incidents.length + ' incident(s) from ' + esc(data.exported || 'the file') + '. Incidents already on this device with the same ID are replaced. Settings are replaced too.', 'Restore', async () => {
+      for (const inc of data.incidents) { await DB.put('incidents', inc); const i = S.incidents.findIndex(x => x.id === inc.id); if (i >= 0) S.incidents[i] = inc; else S.incidents.push(inc); }
+      if (data.settings) { S.settings = Object.assign(clone(DEFAULT_SETTINGS), data.settings); saveSettings(); applySettings(); }
+      closeSheet(); go('home'); toast('Restored');
+    }, 'go');
+  } catch (err) { toast('Could not read that file: ' + err.message); }
+}
+function applySettings() {
+  const r = document.documentElement; r.classList.remove('ts-large', 'ts-huge'); if (S.settings.textSize !== 'normal') r.classList.add('ts-' + S.settings.textSize);
+  wakeLock();
+}
+let wl = null;
+async function wakeLock() {
+  try {
+    const want = S.settings.keepAwake && (S.screen === 'inc' || S.screen === 'handover') && document.visibilityState === 'visible';
+    if (want && !wl && navigator.wakeLock) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); }
+    if (!want && wl) { await wl.release(); wl = null; }
+  } catch (e) { wl = null; }
+}
+document.addEventListener('visibilitychange', () => { wakeLock(); if (document.visibilityState === 'visible') tick(); });
+
+async function boot() {
+  await DB.open();
+  const kv = await DB.all('kv'); const st = kv.find(x => x.k === 'settings');
+  if (st && st.v) S.settings = Object.assign(clone(DEFAULT_SETTINGS), st.v);
+  S.incidents = await DB.all('incidents');
+  applySettings();
+  // resume: if exactly one active job, go straight back into it
+  const act = S.incidents.filter(i => i.status === 'active' && !i.wizStep).sort((a, b) => b.updated - a.updated);
+  if (act.length && act[0].endStep == null && now() - act[0].updated < 12 * 3600000) { S.cur = act[0]; S.screen = 'inc'; }
+  render();
+  setInterval(tick, 1000);
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude\.ai|claudeusercontent/.test(location.host)) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+  // persist storage so iOS is less likely to evict it
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+}
+boot();
+
+</script>
+</body>
+</html>
