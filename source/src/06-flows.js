@@ -120,13 +120,14 @@ SCREENS.review = () => {
 function exportText(inc) {
   const L = []; const hr = '----------------------------------------';
   const cut = inc.handover && inc.handover.doneAt ? inc.handover.doneAt : Infinity;
-  L.push('WORDBACK INCIDENT SUMMARY'); L.push(hr);
+  L.push(inc.training ? 'WORDBACK TRAINING EXERCISE (NOT A REAL INCIDENT)' : 'WORDBACK INCIDENT SUMMARY'); L.push(hr);
   L.push('Incident: ' + (inc.name || '')); L.push('Incident no: ' + (inc.p.incNo || '')); L.push('Date: ' + fmtD(inc.pageTime));
   L.push('Call type: ' + (inc.p.codeRaw || inc.p.code || '') + ' ' + wbType(inc) + (inc.kind ? ' / ' + inc.kind : ''));
   L.push('Address: ' + titleCase(inc.p.address || '') + (inc.p.cross && inc.p.cross.length ? ' (x ' + inc.p.cross.map(titleCase).join(' / ') + ')' : ''));
   if (inc.p.map) L.push('Map: ' + inc.p.map + (inc.p.grid ? ' (' + inc.p.grid + ')' : ''));
   L.push('Area brigade: ' + (areaBrigade(inc) ? areaBrigade(inc).name : (inc.p.areaCode || '')));
   L.push('Control: ' + controlLabel(inc) + ' · CP ' + inc.cp.type + (inc.cp.loc ? ': ' + inc.cp.loc : ''));
+  L.push('Incident level: ' + (inc.level || 1) + (truckCount(inc) ? ' (' + truckCount(inc) + ' trucks)' : ''));
   L.push('Fireground: ' + (inc.fg.state === 'confirmed' ? inc.fg.ch : inc.fg.state === 'na' ? 'not available' : 'not needed'));
   L.push('Prepared by: ' + [S.settings.rank, S.settings.name].filter(Boolean).join(' ') + (S.settings.brigade ? ', ' + S.settings.brigade : '') + ' (' + inc.myApp + ')');
   if (inc.handover && inc.handover.doneAt) L.push('NOTE: summary covers up to handover at ' + fmtT(inc.handover.doneAt) + '.');
@@ -144,7 +145,10 @@ function exportText(inc) {
   if (inc.roads.length) { L.push(''); L.push('ROAD CLOSURES'); L.push(hr); inc.roads.forEach(r => L.push(r.road + ': closed ' + fmtT(r.closed) + (r.reason ? ' (' + r.reason + ')' : '') + (r.by ? ' by ' + r.by : '') + ', ' + (r.open ? 'reopened ' + fmtT(r.open) + (r.reopenReason ? ' (' + r.reopenReason + ')' : '') : 'NOT REOPENED'))); }
   if (inc.hazards.length) { L.push(''); L.push('HAZARDS: ' + inc.hazards.map(x => x.name + ' (' + x.status + ')').join(', ')); }
   if (inc.tactics.length) { L.push(''); L.push('ACTIONS'); L.push(hr); inc.tactics.forEach(t => L.push(fmtT(t.t) + ' ' + t.item + (t.note ? ' (' + t.note + ')' : ''))); }
-  if (inc.ba.teams.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.who || '-') + ', channel ' + (inc.ba.ch || '-') + ', RIT ' + (inc.ba.rit === 'ready' ? 'ready' : inc.ba.rit === 'none' ? 'NONE' : '-')); inc.ba.teams.forEach(t => L.push(t.name + ' ' + (t.mode || '') + (t.pattern ? ', ' + t.pattern.toLowerCase() + ' search' : '') + (t.names ? ' (' + t.names + ')' : '') + ': in ' + fmtT(t.in) + ', out ' + fmtT(t.out))); }
+  const baAll = inc.ba.teams.concat(inc.ba.cleared || []);
+  if (baAll.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.control ? (inc.ba.who || 'yes') : 'not established (IC monitored)') + ', channel ' + (inc.ba.ch || '-') + ', RIT ' + (inc.ba.rit === 'ready' ? 'ready' : inc.ba.rit === 'none' ? 'NONE' : '-')); baAll.forEach(t => { L.push(t.name + (t.names ? ' (' + t.names + ')' : '') + ': ' + (t.cyl || 0) + ' cylinder' + (t.cyl === 1 ? '' : 's') + (fatigued(t) ? ' (fatigue flag)' : '')); (t.entries || []).forEach(e => L.push('   Cyl ' + e.cyl + ' ' + e.mode + (e.pattern ? ', ' + e.pattern.toLowerCase() + ' search' : '') + ': in ' + fmtT(e.in) + ' at ' + e.bar + ' bar, out ' + fmtT(e.out) + (e.estBar != null ? ' (~' + e.estBar + ' bar est)' : ''))); (t.checks || []).forEach(c => L.push('   Pressure check ' + fmtT(c.t) + ': ' + c.bar + ' bar')); }); }
+  (inc.redflags || []).forEach(r => { L.push(''); L.push('RED FLAG: ' + r.text + ' (' + fmtT(r.t) + (r.ended ? ' to ' + fmtT(r.ended) : ', still active') + ')'); Object.keys(r.apps).forEach(id => { const a = inc.apps.find(x => x.id === id) || inc.contractors.find(x => x.id === id); const st = r.apps[id]; L.push('   ' + (a ? (a.callsign || 'Contractor ' + a.type) : id) + ': notified ' + fmtT(st.notified) + ', crew confirmed ' + fmtT(st.confirmed)); }); });
+  if (inc.map && inc.map.ops.length) { L.push(''); L.push('Mud map: drawn (' + inc.map.ops.length + ' items), see PDF.'); }
   if (inc.calls.length) { L.push(''); L.push('PHONE CALLS'); L.push(hr); inc.calls.forEach(c => L.push(fmtT(c.t) + ' ' + c.who + ': ' + c.what)); }
   const s = inc.summary || {};
   L.push(''); L.push('END OF JOB'); L.push(hr);
@@ -175,7 +179,8 @@ async function copyText(t) {
 }
 function loadJsPDF() {
   if (window.jspdf) return Promise.resolve(window.jspdf);
-  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload = () => res(window.jspdf); s.onerror = rej; document.head.appendChild(s); });
+  const load = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = () => window.jspdf ? res(window.jspdf) : rej(new Error('PDF tool missing')); s.onerror = () => rej(new Error('PDF tool not available offline yet')); document.head.appendChild(s); });
+  return load('jspdf.umd.min.js').catch(() => load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'));
 }
 async function makePdf(inc) {
   const lib = await loadJsPDF(); const doc = new lib.jsPDF({ unit: 'mm', format: 'a4' });
@@ -187,6 +192,7 @@ async function makePdf(inc) {
     doc.setFont('courier', isHead ? 'bold' : 'normal');
     doc.splitTextToSize(line || ' ', maxW).forEach(l => { if (y > 284) { doc.addPage(); y = 14; } doc.text(l, left, y); y += 4.2; });
   });
+  if (inc.map && inc.map.ops.length) { doc.addPage(); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('Mud map', 14, 16); doc.addImage(mapPng(inc), 'JPEG', 14, 22, 182, 182); }
   return doc.output('blob');
 }
 async function backupAll() {
@@ -207,6 +213,7 @@ SCREENS.settings = () => {
   h += '<h3>Channels</h3><label class="f">Default fireground channel</label><div class="chips">' + s.fgList.map(c => chip(c, s.defaultFg === c, 'setVal', { k: 'defaultFg', v: c })).join('') + '</div>';
   h += '<label class="f">Fireground channel picker (comma separated)</label><input type="text" id="s_fgl" data-setcsv="fgList" value="' + esc(s.fgList.join(', ')) + '">';
   h += '<h3>Timers</h3><div class="row">' + numSet('Wordback (min after on scene)', 'wbMin') + numSet('First sitrep (min after wordback)', 'sitrepFirst') + numSet('Repeat sitrep (min)', 'sitrepRepeat') + '</div>';
+  h += '<div class="row">' + numSet('BA fatigue flag at cylinder', 'baFatigue') + '</div>';
   h += '<div class="row">' + numSet('Rehab prompt after (min on scene)', 'rehabWork') + numSet('Rehab (min)', 'rehabLen') + numSet('Rest after rehab (min)', 'rehabRest') + '</div>';
   h += '<h3>Alerts and screen</h3><div class="chips">' + chip('Alert sound ' + (s.sound ? 'on' : 'off'), s.sound, 'setTog', { k: 'sound' }) + chip('Vibration (Android) ' + (s.vibrate ? 'on' : 'off'), s.vibrate, 'setTog', { k: 'vibrate' }) + chip('Keep screen awake ' + (s.keepAwake ? 'on' : 'off'), s.keepAwake, 'setTog', { k: 'keepAwake' }) + chip('Test alert', false, 'testAlert') + '</div>';
   h += '<label class="f">Text size</label><div class="chips">' + ['normal', 'large', 'huge'].map(x => chip(titleFirst(x), s.textSize === x, 'setVal', { k: 'textSize', v: x })).join('') + '</div>';

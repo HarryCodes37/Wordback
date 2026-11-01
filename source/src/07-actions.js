@@ -112,11 +112,11 @@ const A = {
     setAppStatus(inc, a, d.v); commit();
   },
   crewAdj(d) { const a = findApp(d.id); a.crew = String(Math.max(0, (Number(a.crew) || 0) + Number(d.v))); if (a.crew === '0') a.crew = ''; saveInc(); renderSheet(); },
-  tkType(d) { const s = S.sheet; const a = findApp(s.id); s.task = s.task || (a.task ? clone(a.task) : {}); s.task.type = d.v; if (d.v !== 'attack') { delete s.task.sub; delete s.task.lines; } renderSheet(); },
-  tkSub(d) { S.sheet.task.sub = d.v; renderSheet(); },
+  tkType(d) { const s = S.sheet; const a = findApp(s.id); s.task = s.task || normTask(a.task ? clone(a.task) : null); const ty = s.task.types; const i = ty.indexOf(d.v); if (i >= 0) ty.splice(i, 1); else ty.push(d.v); if (!ty.includes('attack')) { delete s.task.sub; delete s.task.lines; } renderSheet(); },
+  tkSub(d) { S.sheet.task.sub = S.sheet.task.sub === d.v ? '' : d.v; renderSheet(); },
   tkMore() { S.sheet.more = true; renderSheet(); },
   tkLines(d) { S.sheet.task.lines = S.sheet.task.lines === Number(d.v) ? 0 : Number(d.v); renderSheet(); },
-  tkSave(d) { const inc = S.cur, a = findApp(d.id); const t = Object.assign({}, S.sheet.task, { t: now() }); if (!t.type) return; a.task = t; a.tasks.push(t); logE(a.callsign + ' tasked: ' + taskText(t)); S.sheet.task = null; toast('Tasking saved'); commit(); },
+  tkSave(d) { const a = findApp(d.id); const t = Object.assign({}, S.sheet.task, { t: now() }); delete t.type; if (!t.types || !t.types.length) { if (a.task) { a.task = null; logE(a.callsign + ' tasking cleared'); } } else { a.task = t; a.tasks.push(t); logE(a.callsign + ' tasked: ' + taskText(t)); } closeSheet(); commit(); toast('Tasking saved'); },
   appRemove(d) { const inc = S.cur; const a = findApp(d.id); askConfirm('Remove ' + a.callsign + '?', 'Only for appliances added by mistake. Use Released for trucks leaving.', 'Remove', () => { inc.apps = inc.apps.filter(x => x !== a); logE(a.callsign + ' removed (added in error)'); closeSheet(); commit(); }); },
 
   /* wordback */
@@ -136,6 +136,7 @@ const A = {
     logE('Wordback: ' + plain);
     if (!inc.sitreps.length) inc.sitrepDue = t + S.settings.sitrepFirst * 60000;
     d.res.forEach(k => { const r = RES.find(x => x.k === k); if (r.agency) ensureAgency(inc, r.agency, 'requested'); if (r.contractor) addContractor(inc, d.contractorType || 'Other', 'requested'); });
+    if (d.res.includes('tankers')) inc.makeTankers = Math.max(inc.makeTankers || 0, d.tankers || 0);
     if (d.status === 'uc' && !inc.underControlAt) inc.underControlAt = t;
     if (['stop', 'falsealarm', 'noaction'].includes(d.status)) {
       if (!inc.stopAt) { inc.stopAt = t; inc.stopVariant = st.label; }

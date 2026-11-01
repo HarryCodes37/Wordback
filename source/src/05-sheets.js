@@ -55,23 +55,22 @@ SHEETS.addApp = s => {
 SHEETS.app = s => {
   const inc = curInc(); const a = findApp(s.id); if (!a) return sheetHd('Appliance');
   const fam = famOf(inc);
-  let h = sheetHd(a.callsign, s.back);
+  let h = '<div class="hd"><h2 style="margin:0">' + esc(a.callsign) + '</h2><div class="row">' + (s.task ? btn('Save and close', 'tkSave', 'sm go', { id: a.id }) : '') + btn(s.back ? 'Back' : 'Close', s.back ? 'sheetBack' : 'closeSheet', 'sm ghost') + '</div></div>';
   h += '<p><span class="badge s-' + a.status + '">' + ST_LABEL[a.status] + '</span> <span class="muted small">' + esc(a.code) + '</span></p>';
   const sts = a.mine ? ['enroute', 'onscene', 'water', 'rehab', 'returning'] : ['paged', 'enroute', 'onscene', 'water', 'rehab', 'released', 'cancelled'];
   h += '<div class="chips">' + sts.map(x => chip(x === 'onscene' && a.status === 'water' ? 'Back on scene' : x === 'onscene' && a.status === 'rehab' ? 'Back from rehab' : ST_LABEL[x], a.status === x, 'appSt', { id: a.id, v: x }, x === 'returning' ? 'red' : '')).join('') + '</div>';
   h += '<h3>Crew</h3><div class="row"><div class="stepper">' + btn('−', 'crewAdj', 'sm', { id: a.id, v: -1 }) + '<span class="v num">' + esc(a.crew || '0') + '</span>' + btn('+', 'crewAdj', 'sm', { id: a.id, v: 1 }) + '</div><div class="grow"><input type="text" id="oic_' + a.id + '" data-bind="apps.#' + a.id + '.oic" value="' + esc(a.oic) + '" placeholder="OIC name (optional)"></div></div>';
   h += '<h3>Tasking</h3>';
-  const t = s.task || (a.task ? clone(a.task) : { type: '' });
-  h += '<div class="chips">' + Object.keys(TASKS).map(k => chip(TASKS[k], t.type === k, 'tkType', { v: k })).join('') + '</div>';
-  if (t.type === 'attack') {
+  const t = s.task || normTask(a.task ? clone(a.task) : null);
+  h += '<p class="small muted">Pick one or more. Tap Save and close at the top.</p><div class="chips">' + Object.keys(TASKS).map(k => chip(TASKS[k], t.types.includes(k), 'tkType', { v: k })).join('') + '</div>';
+  if (t.types.includes('attack')) {
     const subs = s.more ? ATTACK_SUB.more : (ATTACK_SUB[fam] || ATTACK_SUB.more);
     h += '<label class="f">Fire attack</label><div class="chips">' + subs.map(x => chip(x, t.sub === x, 'tkSub', { v: x })).join('') + (s.more ? '' : chip('More…', false, 'tkMore')) + '</div>';
     h += '<label class="f">Hose lines (optional)</label><div class="chips">' + [1, 2, 3, 4].map(n => chip(String(n), t.lines === n, 'tkLines', { v: n })).join('') + '</div>';
   }
-  if (t.type) {
-    h += '<label class="f">' + (t.type === 'standby' || t.type === 'road' ? 'Location' : 'Location (optional)') + '</label><input type="text" id="tk_loc" data-sbind="task.loc" value="' + esc(t.loc || '') + '" placeholder="e.g. Murray Valley Hwy gate">';
+  if (t.types.length) {
+    h += '<label class="f">' + (t.types.includes('standby') || t.types.includes('road') ? 'Location' : 'Location (optional)') + '</label><input type="text" id="tk_loc" data-sbind="task.loc" value="' + esc(t.loc || '') + '" placeholder="e.g. Murray Valley Hwy gate">';
     h += '<label class="f">Target / objective (optional)</label><input type="text" id="tk_tgt" data-sbind="task.target" value="' + esc(t.target || '') + '" placeholder="e.g. hold at Newnan Lane, protect house">';
-    h += '<div style="margin-top:10px">' + btn('Save tasking', 'tkSave', 'full go', { id: a.id }) + '</div>';
   }
   if (a.tasks.length) { h += '<h3>Tasking history</h3><div class="log">' + a.tasks.map(x => '<div class="e"><span class="tm">' + fmtT(x.t) + '</span><span>' + esc(taskText(x)) + '</span></div>').join('') + '</div>'; }
   h += '<h3>Status history</h3><div class="log">' + a.hist.map(x => '<div class="e"><span class="tm">' + fmtTS(x.t) + '</span><span>' + ST_LABEL[x.s] + '</span></div>').join('') + '</div>';

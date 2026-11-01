@@ -72,6 +72,7 @@ function reminders(inc) {
     const on = inc.apps.find(a => a.status === 'onscene' && (a.callsign.indexOf(ab.name) === 0));
     if (on && !inc.hoDismissed) r.push({ k: 'handover', text: ab.name + ' on scene. Hand over control?', cls: 'green' });
   }
+  extraReminders(inc, r);
   return r;
 }
 
@@ -128,7 +129,8 @@ const ATTACK_SUB = {
   veh: ['Attack', 'Fuel spill / foam'], mva: ['Attack', 'Fuel spill / foam'], nostc: ['Attack', 'Fuel spill / foam', 'Defensive'],
   more: ['Direct attack', 'Indirect attack', 'Defensive', 'Exposure protection', 'Containment', 'Overhaul']
 };
-function taskText(t) { if (!t) return ''; let s = TASKS[t.type] || t.type; if (t.sub) s += ': ' + t.sub; if (t.loc) s += ' @ ' + t.loc; if (t.target) s += ' [' + t.target + ']'; if (t.lines) s += ' (' + t.lines + ' line' + (t.lines > 1 ? 's' : '') + ')'; return s; }
+function normTask(t) { if (!t) return { types: [] }; if (!t.types) t.types = t.type ? [t.type] : []; return t; }
+function taskText(t) { if (!t) return ''; t = normTask(t); let s = t.types.map(k => k === 'attack' && t.sub ? 'Fire attack: ' + t.sub : (TASKS[k] || k)).join(' + '); if (t.loc) s += ' @ ' + t.loc; if (t.target) s += ' [' + t.target + ']'; if (t.lines) s += ' (' + t.lines + ' line' + (t.lines > 1 ? 's' : '') + ')'; return s; }
 
 const TACTICS = {
   struc: ['Size-up / 360 done', 'Power isolated', 'Gas isolated', 'Water supply established', 'External attack', 'Internal attack', 'Primary search', 'Secondary search', 'No one inside', 'Ventilation', 'Exposures protected', 'Salvage / overhaul', 'Atmospheric monitoring'],

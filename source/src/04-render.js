@@ -16,6 +16,7 @@ function renderSheet() {
   host.innerHTML = '<div class="sheet' + (def.full ? ' full' : '') + '" data-a="sheetBg"><div class="pane" role="dialog" aria-modal="true">' + (typeof def === 'function' ? def(S.sheet) : def.html(S.sheet)) + '</div></div>';
   const p = host.querySelector('.pane'); if (p) p.scrollTop = st;
   document.body.style.overflow = 'hidden';
+  if (S.sheet.type === 'mudmap') setTimeout(initMapCanvas, 0);
 }
 function sheetHd(title, back) {
   return '<div class="hd"><h2 style="margin:0">' + esc(title) + '</h2><button class="btn sm ghost" data-a="' + (back ? 'sheetBack' : 'closeSheet') + '">' + (back ? 'Back' : 'Close') + '</button></div>';
@@ -36,17 +37,17 @@ const SCREENS = {};
 /* ---------- Home ---------- */
 SCREENS.home = () => {
   const act = S.incidents.filter(i => i.status === 'active').sort((a, b) => b.updated - a.updated);
-  const cont = S.incidents.filter(i => i.status === 'continue');
-  const past = S.incidents.filter(i => i.status === 'closed').sort((a, b) => b.created - a.created);
+  const cont = S.incidents.filter(i => i.status === 'continue' && !i.training);
+  const past = S.incidents.filter(i => i.status === 'closed' && !i.training).sort((a, b) => b.created - a.created);
   let h = '<div class="wrap" style="padding-top:calc(10px + env(safe-area-inset-top,0px))">';
   h += '<div class="splash"><div class="logo">Word<span>back</span></div><div class="muted">Incident Management Dashboard</div></div>';
   if (act.length) {
     h += '<h3>Active</h3><div class="stack">';
-    act.forEach(i => { h += '<button class="btn big go" data-a="openInc" data-id="' + i.id + '" style="text-align:left">Resume: ' + esc(i.name || 'Untitled incident') + '<div class="small" style="font-weight:500">' + esc(controlLabel(i)) + ' · paged ' + fmtDT(i.pageTime) + '</div></button>'; });
+    act.forEach(i => { h += '<button class="btn big go" data-a="openInc" data-id="' + i.id + '" style="text-align:left">Resume: ' + (i.training ? '[TRAINING] ' : '') + esc(i.name || 'Untitled incident') + '<div class="small" style="font-weight:500">' + esc(controlLabel(i)) + ' · paged ' + fmtDT(i.pageTime) + '</div></button>'; });
     h += '</div>';
   }
   if (cont.length) { h += '<h3>Not closed out</h3><div class="chips">'; cont.forEach(i => { h += chip('Not closed out: ' + (i.name || 'Incident'), false, 'openInc', { id: i.id }, 'amber'); }); h += '</div>'; }
-  h += '<div style="margin-top:16px">' + btn('+ New incident', 'newInc', 'big pri') + '</div>';
+  h += '<div style="margin-top:16px" class="stack">' + btn('+ New incident', 'newInc', 'big pri') + btn('Training', 'sheet', '', { t: 'training' }) + '</div>';
   h += '<h3>Past incidents</h3>';
   if (!past.length) h += '<p class="dim">Closed jobs land here so you can do FIRS later.</p>';
   past.slice(0, 40).forEach(i => {
@@ -121,16 +122,18 @@ SCREENS.inc = () => {
   const my = myApp(inc);
   let h = '<div class="top"><div class="wrap">';
   h += '<div class="t1"><button class="btn sm ghost" data-a="goHome" style="min-height:36px;padding:2px 8px" aria-label="Home">‹</button><div class="name grow" style="flex:1">' + esc(inc.name || 'Incident') + '</div><div class="clock num mono" id="clock">' + fmtTS(now()) + '</div></div>';
-  h += '<div class="t1" style="align-items:center"><div class="event num mono" id="event">T+ 00:00</div><div style="text-align:right" class="small"><div class="muted">Paged ' + fmtTS(inc.pageTime) + '</div><div class="muted">' + esc(inc.p.codeRaw || inc.p.code || '') + (inc.p.incNo ? ' · ' + esc(inc.p.incNo) : '') + '</div></div></div>';
+  h += '<div class="t1" style="align-items:center"><div class="row" style="gap:10px"><div class="event num mono" id="event">T+ 00:00</div><button class="lvlbadge" id="lvlbadge" data-a="sheet" data-t="level">L1</button></div><div style="text-align:right" class="small"><div class="muted">Paged ' + fmtTS(inc.pageTime) + '</div><div class="muted">' + esc(inc.p.codeRaw || inc.p.code || '') + (inc.p.incNo ? ' · ' + esc(inc.p.incNo) : '') + '</div></div></div>';
   h += '<div class="t2"><span>FireCom <b>524</b></span><span>Fireground <b>' + (inc.fg.state === 'confirmed' ? esc(inc.fg.ch) : inc.fg.state === 'na' ? 'n/a' : '-') + '</b></span>' + (inc.ba.control && inc.ba.ch && inc.ba.ch !== inc.fg.ch ? '<span>BA <b>' + esc(inc.ba.ch) + '</b></span>' : '') + '<span><b>' + esc(inc.mode === 'control' ? controlLabel(inc) : inc.mode === 'logonly' ? 'Log only' : 'Support' + (inc.supportOf ? ': ' + inc.supportOf : '')) + '</b></span>' + (inc.cp.loc ? '<span>CP ' + (inc.cp.type === 'dynamic' ? 'dynamic' : 'static') + ': <b>' + esc(inc.cp.loc) + '</b></span>' : '') + '</div>';
   h += '</div></div><div class="wrap">';
+  if (inc.training) h += '<div class="banner amber" style="text-align:center;font-weight:900;letter-spacing:.2em">TRAINING</div>';
+  const rfa = rfActive(inc); if (rfa) h += '<div class="banner red" data-a="sheet" data-t="redflag" style="cursor:pointer">RED FLAG: ' + esc(rfa.text) + ' · ' + rfProgress(inc, rfa).done + ' of ' + rfProgress(inc, rfa).total + ' confirmed</div>';
   if (inc.locked) h += '<div class="lockbar">Exported and locked ' + fmtDT(inc.exportedAt) + '. New entries are flagged as late notes.</div>';
   if (inc.status === 'continue') h += '<div class="banner amber">Not closed out. Timers are off. ' + btn('Close out incident', 'closeOut', 'sm go') + '</div>';
   if (inc.mode === 'support') h += '<div class="banner">Support mode: not in control' + (inc.supportOf ? ' (' + esc(inc.supportOf) + ')' : '') + '. Timers off. ' + btn('Take control', 'takeControl', 'sm go') + '</div>';
   if (inc.mode === 'logonly') h += '<div class="banner">Log only: control handed to ' + esc(inc.handover ? inc.handover.to : '') + '. Timers off. ' + btn('Resume control', 'resumeControl', 'sm') + '</div>';
   if (my && (my.status === 'paged' || my.status === 'enroute') && inc.status === 'active') h += '<div style="margin-top:8px">' + btn(my.status === 'paged' ? 'Turning out' : 'ON SCENE', my.status === 'paged' ? 'myEnroute' : 'myOnScene', 'big ' + (my.status === 'paged' ? 'warn' : 'go')) + '</div>';
   if (noRitDanger(inc)) h += '<div class="banner red" data-a="sheet" data-t="ba" style="cursor:pointer">INTERNAL BA WITH NO RIT. HIGH RISK.</div>';
-  h += '<div id="timerbar"></div><div class="rems" id="rems"></div>';
+  h += '<div id="timerbar"></div><div id="bapanel" class="stack" style="gap:6px;margin-top:6px"></div><div class="rems" id="rems"></div>';
   if (isFire(inc) && !inc.origin) h += '<div class="pinned" data-a="sheet" data-t="origin" style="cursor:pointer"><span class="small muted">POINT OF ORIGIN</span> <b><span class="amber">Tap to record</span></b></div>';
   h += '<div class="tiles">' + tiles(inc) + '</div>';
   h += '</div>';
@@ -177,6 +180,10 @@ function tiles(inc) {
   const cd = inc.conditions || {};
   h += '<div class="tile" data-a="sheet" data-t="conditions"><div class="tt">Conditions</div><div class="ts">' + ([cd.temp && cd.temp + '°C', cd.wind && cd.wind + ' km/h', cd.dir, cd.rh && cd.rh + '% RH'].filter(Boolean).join(' · ') || 'Optional') + '</div></div>';
   if (isFire(inc) && inc.origin) h += '<div class="tile" data-a="sheet" data-t="origin"><div class="tt">Point of origin</div><div class="ts">' + esc(inc.origin) + '</div></div>';
+  // red flag + mud map
+  const rf = rfActive(inc);
+  h += '<div class="tile' + (rf ? ' bad' : '') + '" data-a="sheet" data-t="redflag"' + (rf ? ' style="background:#5c1210"' : '') + '><div class="tt">Red flag</div><div class="ts">' + (rf ? '<b class="red">ACTIVE</b> ' + rfProgress(inc, rf).done + '/' + rfProgress(inc, rf).total + ' confirmed' : 'None active') + '</div></div>';
+  h += '<div class="tile" data-a="sheet" data-t="mudmap"><div class="tt">Mud map</div><div class="ts">' + (inc.map && inc.map.ops.length ? inc.map.ops.length + ' items drawn' : 'Sketch the fireground') + '</div></div>';
   // log
   h += '<div class="tile wide xwide" data-a="sheet" data-t="log"><div class="tt"><span>Log</span><span class="muted small">' + inc.log.length + ' entries</span></div><div class="log">' + inc.log.slice(-5).reverse().map(e => '<div class="e' + (e.late ? ' late' : '') + '"><span class="tm num">' + fmtT(e.t) + '</span><span>' + esc(e.text) + '</span></div>').join('') + '</div></div>';
   return h;
@@ -204,6 +211,7 @@ function tick(force) {
   document.body.className = cls;
   const rm = $('#rems');
   if (rm) { const r = reminders(inc); const html = r.map(x => chip(x.text, false, 'remTap', { k: x.k, id: x.id || '' }, x.cls)).join(''); if (rm._h !== html) { rm.innerHTML = html; rm._h = html; } }
+  tickExtra(inc);
 }
 let audioCtx = null;
 function alertBuzz() {

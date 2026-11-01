@@ -1,6 +1,6 @@
 'use strict';
 /* ===== Wordback core: utils, data, storage ===== */
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 const APP_UPDATED = '1 Nov 2026';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -49,7 +49,7 @@ const DEFAULT_SETTINGS = {
   myAppliances: ['Kiewa Tanker 1', 'Kiewa Tanker 2', 'Kiewa Ultralight'], defaultAppliance: 'Kiewa Tanker 1',
   defaultFg: '353', fgList: ['353', '352', '354', '471'],
   directory: SEED_DIRECTORY, brigades: SEED_BRIGADES,
-  wbMin: 10, sitrepFirst: 5, sitrepRepeat: 15, rehabWork: 20, rehabLen: 20, rehabRest: 10,
+  wbMin: 10, sitrepFirst: 5, sitrepRepeat: 15, rehabWork: 20, rehabLen: 20, rehabRest: 10, baFatigue: 3,
   sound: true, vibrate: true, keepAwake: true, textSize: 'normal'
 };
 

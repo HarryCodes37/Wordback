@@ -116,3 +116,8 @@ pre.out{white-space:pre-wrap;background:#0d0f11;border:1px solid var(--line);bor
 .stepper{display:flex;align-items:center;gap:8px}
 .stepper .v{min-width:44px;text-align:center;font-size:1.3em;font-weight:800}
 .lockbar{background:#333;border-radius:10px;padding:10px;margin-top:8px}
+
+.lvlbadge{appearance:none;border:2px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:8px;padding:2px 8px;font-weight:800;font-size:.85em;cursor:pointer;min-height:32px}
+.lvlbadge.flash{color:#000;background:var(--amber);border-color:var(--amber);animation:lvl 1s steps(2) infinite}
+@keyframes lvl{50%{background:transparent;color:var(--amber)}}
+@media (prefers-reduced-motion:reduce){.lvlbadge.flash{animation:none}}
