@@ -16,7 +16,7 @@ function patchSheetLive() {
 document.addEventListener('input', e => {
   const el = e.target; const ds = el.dataset; const v = el.value;
   if (el.id === 'pager') { if (S.wiz) S.wiz.raw = v; return; }
-  if (ds.bind && S.cur) { setPath(S.cur, ds.bind, v); saveSoon(); patchSheetLive(); return; }
+  if (ds.bind && S.cur) { if (ds.bind === 'name') S.cur.nameAuto = false; setPath(S.cur, ds.bind, v); saveSoon(); patchSheetLive(); return; }
   if (ds.sbind && S.sheet) { setPath(S.sheet, ds.sbind, v); patchSheetLive(); return; }
   if (ds.hbind && S.cur && S.cur.hoDraft) { S.cur.hoDraft[ds.hbind] = v; saveSoon(); return; }
   if (ds.setbind) { S.settings[ds.setbind] = v; saveSettings(); return; }

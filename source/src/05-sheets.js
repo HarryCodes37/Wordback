@@ -107,6 +107,29 @@ const SITREP_PICKS = {
   veh: [['vtype', 'Vehicle', ['Car', 'Ute / 4WD', 'Truck', 'Tractor / machinery', 'Bus', 'Caravan']], ['extent', 'Extent', ['Engine bay', 'Cabin', 'Fully involved', 'Knocked down']], ['leak', 'Fuel leak', ['None', 'Minor', 'Significant']]]
 };
 SITREP_PICKS.mva = SITREP_PICKS.veh; SITREP_PICKS.nostc = SITREP_PICKS.veh;
+function srPhrase(k, v) {
+  const l = v.toLowerCase();
+  switch (k) {
+    case 'size': return 'approx ' + v;
+    case 'dir': return 'heading ' + v;
+    case 'ros': return l === 'nil' ? 'no forward spread' : l + ' rate of spread';
+    case 'flame': return 'flame height ' + v;
+    case 'fuel': return l + ' fuel';
+    case 'btype': return l;
+    case 'area': return l === 'whole building' ? 'whole building involved' : l + ' involved';
+    case 'smoke': return l === 'nil visible' ? 'no smoke visible' : l + ' smoke';
+    case 'vtype': return l;
+    case 'leak': return l === 'none' ? 'no fuel leak' : l + ' fuel leak';
+    default: return l;
+  }
+}
+const SR_TACTICS = {
+  gs: ['Direct attack', 'Flank attack', 'Parallel attack', 'Defensive', 'Asset protection', 'Blacking out', 'Patrolling'],
+  struc: ['Offensive internal', 'Defensive external', 'Exposure protection', 'Ventilation', 'Search and rescue', 'Overhaul'],
+  veh: ['Direct attack', 'Foam', 'Fuel spill control', 'Exposure protection'],
+  other: ['Direct attack', 'Defensive', 'Exposure protection', 'Containment', 'Hazard made safe']
+};
+SR_TACTICS.mva = SR_TACTICS.veh; SR_TACTICS.nostc = SR_TACTICS.veh;
 const THREATS = ['Nil', 'Houses', 'Sheds / outbuildings', 'Livestock', 'Fences', 'Crops / pasture', 'Road', 'Power lines', 'Bush / plantation'];
 function changesSince(inc) {
   const last = inc.sitreps[inc.sitreps.length - 1]; const since = last ? last.t : (inc.wordbacks[0] ? inc.wordbacks[0].t : 0);
@@ -116,9 +139,10 @@ function taskSummary(inc) { return inc.apps.filter(a => a.status === 'onscene' &
 function sitrepText(inc, d) {
   const picks = SITREP_PICKS[famOf(inc)] || [];
   const parts = [];
-  picks.forEach(([k, lab]) => { if (d.f[k]) parts.push(k === 'dir' ? 'heading ' + d.f[k] : k === 'ros' ? d.f[k].toLowerCase() + ' rate of spread' : k === 'flame' ? 'flame height ' + d.f[k] : (lab === 'Size' ? 'approx ' + d.f[k] : d.f[k].toLowerCase()) ); });
-  let s = 'FireCom, ' + controlLabel(inc) + ', sitrep. ';
+  picks.forEach(([k]) => { if (d.f[k]) parts.push(srPhrase(k, d.f[k])); });
+  let s = 'FireCom, sitrep from ' + radioFrom() + ', ' + wbType(inc).toLowerCase() + '. ';
   if (parts.length) s += titleFirst(parts.join(', ')) + '. ';
+  if (d.tac && d.tac.length) s += 'Tactics: ' + d.tac.join(', ').toLowerCase() + '. ';
   if (d.threat && d.threat.length) s += 'Threatening: ' + d.threat.join(', ').toLowerCase() + '. ';
   if (d.potential) s += d.potential.trim().replace(/\.?$/, '. ');
   if (d.eta) s += 'Expect under control ' + d.eta + '. ';
@@ -134,6 +158,7 @@ SHEETS.sitrep = s => {
   const di = dueInfo(inc);
   if (di && di.kind === 'sitrep' && di.due <= now()) h += '<div class="banner amber">Sitrep due. Update the wordback status or request resources if things have changed. <div class="row" style="margin-top:6px">' + btn('Update wordback', 'openWb', 'sm') + btn('Request resources', 'openWbRes', 'sm') + '</div></div>';
   (SITREP_PICKS[fam] || []).forEach(([k, lab, opts]) => { h += '<label class="f">' + esc(lab) + '</label><div class="chips">' + opts.map(o => chip(o, d.f[k] === o, 'srPick', { k, v: o })).join('') + '</div>'; });
+  h += '<label class="f">Tactics in use</label><div class="chips">' + (SR_TACTICS[fam] || SR_TACTICS.other).map(o => chip(o, (d.tac || []).includes(o), 'srTac', { v: o })).join('') + '</div>';
   h += '<label class="f">Threatening</label><div class="chips">' + THREATS.map(o => chip(o, (d.threat || []).includes(o), 'srThreat', { v: o })).join('') + '</div>';
   h += '<label class="f">Potential / prediction</label><input type="text" id="sr_pot" data-sbind="d.potential" value="' + esc(d.potential || '') + '" placeholder="e.g. potential to reach Newnan Lane">';
   h += '<label class="f">Expect under control</label><div class="chips">' + ['in 5 minutes', 'in 15 minutes', 'in 30 minutes', 'in 1 hour', 'in 2+ hours'].map(o => chip(o, d.eta === o, 'srEta', { v: o })).join('') + '</div>';
@@ -149,7 +174,7 @@ SHEETS.message = s => {
   const inc = curInc(); const d = s.d;
   let h = sheetHd('Message');
   h += '<p class="muted">For anything outside a wordback or sitrep.</p><input type="text" id="msg_txt" data-sbind="d.text" value="' + esc(d.text || '') + '" placeholder="e.g. 5-6 on scene">';
-  h += '<h3>Script</h3>' + script('FireCom, ' + controlLabel(inc) + ', message: ' + (d.text || '...'));
+  h += '<h3>Script</h3>' + script('FireCom, message from ' + radioFrom() + ': ' + (d.text || '...'));
   h += '<div class="stack" style="margin-top:12px">' + btn('Sent', 'msgSent', 'big go') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
   if (inc.messages.length) h += '<h3>Sent</h3><div class="log">' + inc.messages.map(m => '<div class="e"><span class="tm">' + fmtT(m.t) + '</span><span>' + esc(m.text) + '</span></div>').join('') + '</div>';
   return h;
@@ -160,7 +185,7 @@ function smeacs(inc) {
   const haz = inc.hazards.filter(x => x.status !== 'removed').map(x => x.name + (x.status === 'managed' ? ' (managed)' : ''));
   const ls = inc.sitreps[inc.sitreps.length - 1];
   return [
-    ['S', 'Situation', [wbType(inc) + (inc.kind ? ' (' + inc.kind + ')' : '') + ' at ' + titleCase(inc.p.address || ''), lw ? 'Status: ' + WB_STATUS[lw.status].plain + ' (' + fmtT(lw.t) + ')' : 'No wordback yet', ls ? 'Last sitrep: ' + ls.text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '') : '', inc.origin ? 'Origin: ' + inc.origin : ''].filter(Boolean)],
+    ['S', 'Situation', [wbType(inc) + (inc.kind ? ' (' + inc.kind + ')' : '') + ' at ' + titleCase(inc.p.address || ''), lw ? 'Status: ' + WB_STATUS[lw.status].plain + ' (' + fmtT(lw.t) + ')' : 'No wordback yet', ls ? 'Last sitrep: ' + ls.text.replace(/^FireCom, sitrep from [^.]*\.\s*/, '') : '', inc.origin ? 'Origin: ' + inc.origin : ''].filter(Boolean)],
     ['M', 'Mission', [inc.mission || 'Protect life, property and environment; contain and extinguish.']],
     ['E', 'Execution', taskSummary(inc).length ? taskSummary(inc) : ['No taskings logged']],
     ['A', 'Administration', [countsText(inc), inc.contractors.length ? 'Contractors: ' + inc.contractors.map(c => c.type + ' (' + CON_ST[c.status] + ')').join(', ') : '', inc.roads.filter(r => !r.open).length ? 'Roads closed: ' + inc.roads.filter(r => !r.open).map(r => r.road).join(', ') : ''].filter(Boolean)],
@@ -239,20 +264,23 @@ function machineMs(c) { return (c.runs || []).reduce((s, r) => s + ((r.end || no
 SHEETS.ba = s => {
   const inc = curInc(); const b = inc.ba;
   let h = sheetHd('Breathing apparatus');
+  if (noRitDanger(inc)) h += '<div class="banner red">INTERNAL BA WITH NO RIT. HIGH RISK.</div>';
   h += '<div class="chips">' + chip(b.control ? 'BA control established' : 'BA control not set', b.control, 'baCtl') + '</div>';
   h += '<div class="row"><div class="grow"><label class="f">BA control (who)</label><input type="text" id="ba_who" data-bind="ba.who" value="' + esc(b.who) + '" placeholder="Name / appliance"></div><div class="grow"><label class="f">BA channel</label><input type="text" id="ba_ch" data-bind="ba.ch" value="' + esc(b.ch) + '" placeholder="e.g. 353" inputmode="numeric"></div></div>';
-  h += '<label class="f">Search pattern</label><div class="chips">' + chip('Left hand', b.pattern === 'Left hand', 'baPat', { v: 'Left hand' }) + chip('Right hand', b.pattern === 'Right hand', 'baPat', { v: 'Right hand' }) + '</div>';
-  h += '<label class="f">Rapid intervention team</label>' + (b.rit ? '<p><b class="green">' + esc(b.rit) + '</b> ' + btn('Change', 'baRitClear', 'sm ghost') + '</p>' : '<div class="row"><div class="grow"><input type="text" id="ba_rit" data-sbind="rit" value="' + esc(s.rit || '') + '" placeholder="RIT crew / appliance"></div>' + btn('Log RIT', 'baRit', 'sm go') + btn('RIT not available', 'baRitNA', 'sm warn') + '</div>');
+  h += '<label class="f">Rapid intervention team</label><div class="chips">' + chip('RIT ready', b.rit === 'ready', 'baRitSet', { v: 'ready' }, b.rit === 'ready' ? 'green' : '') + chip('No RIT', b.rit === 'none', 'baRitSet', { v: 'none' }, b.rit === 'none' ? 'red' : '') + '</div>';
   h += '<h3>Teams</h3>';
   b.teams.forEach(t => {
     const inside = t.in && !t.out;
-    h += '<div class="card" style="margin-top:6px' + (inside ? ';border-color:var(--amber)' : '') + '"><div class="row" style="justify-content:space-between"><b>' + esc(t.name) + '</b><span class="small">' + (t.in ? 'In ' + fmtT(t.in) : '') + (t.out ? ' · Out ' + fmtT(t.out) : '') + (inside ? ' · <b class="amber num" data-since="' + t.in + '">' + fmtDur(now() - t.in) + '</b>' : '') + '</span></div>';
-    h += '<input type="text" id="bt_' + t.id + '" data-bind="ba.teams.#' + t.id + '.names" value="' + esc(t.names || '') + '" placeholder="Names or count" style="margin-top:6px">';
-    h += '<div class="row" style="margin-top:6px">' + (!t.in ? btn('Entered', 'baIn', 'sm warn', { id: t.id }) : !t.out ? btn('Exited', 'baOut', 'sm go', { id: t.id }) : '<span class="green small">Out</span>') + '</div></div>';
+    h += '<div class="card" style="margin-top:6px' + (inside ? ';border-color:var(--amber)' : '') + '"><div class="row" style="justify-content:space-between"><b>' + esc(t.name) + '</b><span class="small">' + (t.in ? 'In ' + fmtT(t.in) : '') + (t.out ? ' · Out ' + fmtT(t.out) : '') + (inside ? ' · <b class="amber num">' + fmtDur(now() - t.in) + '</b>' : '') + '</span></div>';
+    h += '<div class="chips" style="margin-top:6px">' + chip('External', t.mode === 'external', 'baMode', { id: t.id, v: 'external' }) + chip('Internal', t.mode === 'internal', 'baMode', { id: t.id, v: 'internal' }) + '</div>';
+    if (t.mode === 'internal') h += '<div class="chips" style="margin-top:6px">' + chip('Left hand search', t.pattern === 'Left hand', 'baPat', { id: t.id, v: 'Left hand' }) + chip('Right hand search', t.pattern === 'Right hand', 'baPat', { id: t.id, v: 'Right hand' }) + '</div>';
+    h += '<input type="text" id="bt_' + t.id + '" data-bind="ba.teams.#' + t.id + '.names" value="' + esc(t.names || '') + '" placeholder="Names or count (optional)" style="margin-top:6px">';
+    h += '<div class="row" style="margin-top:6px">' + (!t.in ? btn('Entered', 'baIn', 'sm warn', { id: t.id }) : !t.out ? btn('Exited', 'baOut', 'sm go', { id: t.id }) : '<span class="green small">Out</span>') + (!t.in ? btn('Remove', 'baRm', 'sm ghost', { id: t.id }) : '') + '</div></div>';
   });
-  h += '<div style="margin-top:8px">' + btn('+ Add BA team', 'baAdd', 'full') + '</div>';
+  h += '<label class="f">Add team</label><div class="chips">' + [1, 2, 3, 4, 5, 6].map(n => { const nm = 'Team ' + n; const has = b.teams.some(t => t.name === nm); return chip(nm, has, has ? 'noop' : 'baAddN', { v: nm }); }).join('') + '</div>';
   return h;
 };
+function noRitDanger(inc) { return inc.ba.rit === 'none' && inc.ba.teams.some(t => t.mode === 'internal' && !t.out); }
 /* ---- Radio signals ---- */
 const SIGNALS = [['5-5', 'Hostile act, significant violence or terrorism', 'Radio signal 5-5: hostile act'], ['4-0', 'Urgent police, crew or public under threat', 'Radio signal 4-0: urgent police attendance requested'], ['5-6', 'Police attendance (non-urgent)', 'Radio signal 5-6: police requested (non-urgent)'], ['8-3', 'Deceased person', 'Radio signal 8-3: deceased person'], ['2-7', 'CIS / peer support required', 'Radio signal 2-7: peer support requested']];
 SHEETS.signals = () => sheetHd('Radio signals') + '<div class="stack">' + SIGNALS.map(([c, m]) => '<button class="btn big" data-a="sigTap" data-v="' + c + '" style="text-align:left"><span style="font-size:1.3em">' + c + '</span> <span class="small" style="font-weight:500">' + esc(m) + '</span></button>').join('') + '</div>';

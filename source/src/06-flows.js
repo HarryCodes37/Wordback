@@ -136,7 +136,7 @@ function exportText(inc) {
   if (inc.conditions && Object.values(inc.conditions).some(Boolean)) { const c = inc.conditions; L.push(''); L.push('Conditions: ' + [c.temp && c.temp + 'C', c.wind && c.wind + ' km/h', c.dir && 'from ' + c.dir, c.rh && c.rh + '% RH', c.notes].filter(Boolean).join(', ')); }
   if (inc.origin) L.push('Point of origin: ' + inc.origin);
   L.push(''); L.push('WORDBACKS AND SITREPS'); L.push(hr);
-  [].concat(inc.wordbacks.map(w => [w.t, 'Wordback: ' + w.plain]), inc.sitreps.map(x => [x.t, 'Sitrep: ' + x.text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '')]), inc.messages.map(m => [m.t, 'Message: ' + m.text])).sort((a, b) => a[0] - b[0]).forEach(([t, x]) => L.push(fmtT(t) + ' ' + x));
+  [].concat(inc.wordbacks.map(w => [w.t, 'Wordback: ' + w.plain]), inc.sitreps.map(x => [x.t, 'Sitrep: ' + x.text.replace(/^FireCom, sitrep from [^.]*\.\s*/, '')]), inc.messages.map(m => [m.t, 'Message: ' + m.text])).sort((a, b) => a[0] - b[0]).forEach(([t, x]) => L.push(fmtT(t) + ' ' + x));
   L.push(''); L.push('APPLIANCES'); L.push(hr);
   inc.apps.forEach(a => { L.push(a.callsign + (a.code ? ' (' + a.code + ')' : '') + (a.crew ? ', crew ' + a.crew : '') + (a.oic ? ', OIC ' + a.oic : '')); L.push('   ' + a.hist.filter(x => x.t <= cut).map(x => ST_LABEL[x.s] + ' ' + fmtT(x.t)).join(', ')); if (a.tasks.length) L.push('   Taskings: ' + a.tasks.map(t => fmtT(t.t) + ' ' + taskText(t)).join('; ')); });
   if (inc.agencies.length) { L.push(''); L.push('AGENCIES'); L.push(hr); inc.agencies.forEach(a => L.push(a.name + (a.note ? ' (' + a.note + ')' : '') + ': ' + a.hist.map(x => AG_ST[x.s] + ' ' + fmtT(x.t)).join(', '))); }
@@ -144,7 +144,7 @@ function exportText(inc) {
   if (inc.roads.length) { L.push(''); L.push('ROAD CLOSURES'); L.push(hr); inc.roads.forEach(r => L.push(r.road + ': closed ' + fmtT(r.closed) + (r.reason ? ' (' + r.reason + ')' : '') + (r.by ? ' by ' + r.by : '') + ', ' + (r.open ? 'reopened ' + fmtT(r.open) + (r.reopenReason ? ' (' + r.reopenReason + ')' : '') : 'NOT REOPENED'))); }
   if (inc.hazards.length) { L.push(''); L.push('HAZARDS: ' + inc.hazards.map(x => x.name + ' (' + x.status + ')').join(', ')); }
   if (inc.tactics.length) { L.push(''); L.push('ACTIONS'); L.push(hr); inc.tactics.forEach(t => L.push(fmtT(t.t) + ' ' + t.item + (t.note ? ' (' + t.note + ')' : ''))); }
-  if (inc.ba.teams.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.who || '-') + ', channel ' + (inc.ba.ch || '-') + ', search ' + (inc.ba.pattern || '-') + ', RIT ' + (inc.ba.rit || '-')); inc.ba.teams.forEach(t => L.push(t.name + ' (' + (t.names || '') + '): in ' + fmtT(t.in) + ', out ' + fmtT(t.out))); }
+  if (inc.ba.teams.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.who || '-') + ', channel ' + (inc.ba.ch || '-') + ', RIT ' + (inc.ba.rit === 'ready' ? 'ready' : inc.ba.rit === 'none' ? 'NONE' : '-')); inc.ba.teams.forEach(t => L.push(t.name + ' ' + (t.mode || '') + (t.pattern ? ', ' + t.pattern.toLowerCase() + ' search' : '') + (t.names ? ' (' + t.names + ')' : '') + ': in ' + fmtT(t.in) + ', out ' + fmtT(t.out))); }
   if (inc.calls.length) { L.push(''); L.push('PHONE CALLS'); L.push(hr); inc.calls.forEach(c => L.push(fmtT(c.t) + ' ' + c.who + ': ' + c.what)); }
   const s = inc.summary || {};
   L.push(''); L.push('END OF JOB'); L.push(hr);

@@ -49,7 +49,7 @@ function pagedToAppliances(p, mine) {
     const d = dirByCode(t);
     if (d) { if (d.callsign !== mine) list.push({ callsign: d.callsign, code: t }); continue; }
     if (/^P\d{2}[A-Z]?$/.test(t)) { list.push({ callsign: 'FRV ' + t, code: t, frv: true }); continue; }
-    const bm = t.match(/^C([A-Z]{4})$/); if (bm) { const b = brigadeByCode(bm[1]); list.push({ callsign: b ? b.name + ' (brigade)' : t, code: t, brigadeOnly: true }); continue; }
+    if (/^C[A-Z]{4}$/.test(t)) continue; // brigade turnout, not an appliance
     const am = t.match(/^([A-Z]{4})([TPU]\w*)$/); if (am) { const b = brigadeByCode(am[1]); list.push({ callsign: b ? b.name + ' ' + (am[2][0] === 'T' ? 'Tanker ' : am[2][0] === 'P' ? 'Pumper ' : 'Ultralight ') + am[2].slice(1) : t, code: t }); continue; }
     list.push({ callsign: t, code: t });
   }
@@ -60,8 +60,9 @@ function pickKind(code, details) {
   for (const [k, re] of list) if (re && re.test(details)) return k;
   return 'Other';
 }
-function niceName(p) {
-  const det = titleCase(p.details || (CALL_TYPES[p.code] || {}).label || 'Incident');
+function niceName(p, kind) {
+  const ct = CALL_TYPES[p.code] || CALL_TYPES.INCIC;
+  const det = (kind && kind !== 'Other') ? kind.split(' / ')[0].replace(/\s*\(.*\)/, '') : ct.label;
   const road = roadName(p);
   return det + (road ? ', ' + titleCase(road) : '');
 }

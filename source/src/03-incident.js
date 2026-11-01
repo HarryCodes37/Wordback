@@ -34,7 +34,7 @@ function setAppStatus(inc, a, s, opts) {
   else if (s === 'onscene' && prev === 'rehab') logE(a.callsign + ' crew back from rehab');
   else logE(a.callsign + ' ' + plain);
   if (s === 'onscene' && prev === 'rehab') { a.rehabDue = t + S.settings.rehabWork * 60000; a.rehabBack = null; }
-  if (s === 'onscene' && prev !== 'water' && prev !== 'rehab') { a.onSince = t; a.rehabDue = t + S.settings.rehabWork * 60000; if (!a.mine && !(opts && opts.noReport) && inc.mode === 'control' && inc.onSceneAt) inc.unreported.push(a.id); }
+  if (s === 'onscene' && prev !== 'water' && prev !== 'rehab') { a.onSince = t; a.rehabDue = t + S.settings.rehabWork * 60000; }
   if (s === 'rehab') { a.rehabBack = t + ((S.settings.rehabLen || 20) + S.settings.rehabRest) * 60000; }
   if (s === 'released' || s === 'cancelled' || s === 'returning') { inc.unreported = inc.unreported.filter(x => x !== a.id); }
 }
@@ -66,7 +66,7 @@ function reminders(inc) {
   inc.apps.forEach(a => { if (a.status === 'rehab' && a.rehabBack && t >= a.rehabBack) r.push({ k: 'rehabback', id: a.id, text: a.callsign + ' rehab done?', cls: 'green' }); });
   if (inc.unreported.length && inc.mode === 'control') r.push({ k: 'arrivals', text: inc.unreported.length + ' arrival' + (inc.unreported.length > 1 ? 's' : '') + ' not told to FireCom', cls: 'amber' });
   inc.remind.forEach(x => r.push({ k: 'msg', id: x.id, text: x.text, cls: 'amber' }));
-  if (inc.mode === 'control' && baInside(inc).length && !inc.ba.rit) r.push({ k: 'rit', text: 'RIT not logged', cls: 'red' });
+  if (inc.mode === 'control' && inc.ba.teams.some(t => t.mode === 'internal' && !t.out) && !inc.ba.rit) r.push({ k: 'rit', text: 'Internal BA: RIT not set', cls: 'red' });
   const ab = areaBrigade(inc);
   if (inc.mode === 'control' && ab && ab.code !== S.settings.homeCode.replace(/^C/, '') && !inc.handover) {
     const on = inc.apps.find(a => a.status === 'onscene' && (a.callsign.indexOf(ab.name) === 0));
@@ -87,8 +87,7 @@ const RES = [
   { k: 'police40', label: 'Police URGENT (4-0)', radio: '4-0', plain: 'police URGENT', agency: 'Police' },
   { k: 'av', label: 'Ambulance', radio: 'Ambulance', plain: 'ambulance', agency: 'Ambulance (AV)' },
   { k: 'rescue', label: 'Rescue', radio: 'Rescue', plain: 'rescue' },
-  { k: 'tankers', label: 'More tankers', radio: 'make tankers', plain: 'more tankers' },
-  { k: 'hotday', label: 'Hot Day (make tankers 5)', radio: 'make tankers 5', plain: 'Hot Day response, make tankers 5' },
+  { k: 'tankers', label: 'Make tankers #', radio: 'make tankers', plain: 'make tankers' },
   { k: 'ba', label: 'BA support', radio: 'BA support', plain: 'BA support' },
   { k: 'air', label: 'Aircraft', radio: 'aircraft', plain: 'aircraft' },
   { k: 'frv', label: 'FRV', radio: 'FRV', plain: 'FRV' },
@@ -96,9 +95,14 @@ const RES = [
   { k: 'power', label: 'Power company', radio: 'power company', plain: 'power company', agency: 'Power company' },
   { k: 'contractor', label: 'Contractor / machinery', radio: 'contractor', plain: 'contractor', contractor: true }
 ];
+function radioFrom() {
+  const st = S.settings; const rank = (st.rank || '').replace(/^\d+(st|nd|rd|th)\s+/i, '').trim();
+  const sur = (st.name || '').trim().split(/\s+/).pop();
+  return sur ? (rank ? rank + ' ' : '') + sur : (rank ? rank + ' ' : '') + '[your name]';
+}
 function wbScript(inc, d) {
   const st = WB_STATUS[d.status] || {};
-  let s = 'FireCom, ' + controlLabel(inc) + ', wordback. ' + (d.status === 'falsealarm' ? 'False alarm' : wbType(inc)) + (d.desc ? ', ' + d.desc : '') + ', ' + (st.radio || '') + '.';
+  let s = 'FireCom, wordback from ' + radioFrom() + ', ' + (d.status === 'falsealarm' ? 'false alarm' : wbType(inc).toLowerCase()) + (d.desc ? ', ' + d.desc : '') + ', ' + (st.radio || '') + '.';
   const req = (d.res || []).map(k => { const r = RES.find(x => x.k === k); if (!r) return ''; if (k === 'tankers') return 'make tankers ' + (d.tankers || 2); if (k === 'contractor') return 'contractor' + (d.contractorType ? ' (' + d.contractorType.toLowerCase() + ')' : ''); return r.radio; }).filter(Boolean);
   if (req.length) s += ' Request ' + req.join(', ') + '.';
   if (d.extra) s += ' ' + d.extra.trim();

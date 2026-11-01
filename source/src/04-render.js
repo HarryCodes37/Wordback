@@ -129,8 +129,9 @@ SCREENS.inc = () => {
   if (inc.mode === 'support') h += '<div class="banner">Support mode: not in control' + (inc.supportOf ? ' (' + esc(inc.supportOf) + ')' : '') + '. Timers off. ' + btn('Take control', 'takeControl', 'sm go') + '</div>';
   if (inc.mode === 'logonly') h += '<div class="banner">Log only: control handed to ' + esc(inc.handover ? inc.handover.to : '') + '. Timers off. ' + btn('Resume control', 'resumeControl', 'sm') + '</div>';
   if (my && (my.status === 'paged' || my.status === 'enroute') && inc.status === 'active') h += '<div style="margin-top:8px">' + btn(my.status === 'paged' ? 'Turning out' : 'ON SCENE', my.status === 'paged' ? 'myEnroute' : 'myOnScene', 'big ' + (my.status === 'paged' ? 'warn' : 'go')) + '</div>';
+  if (noRitDanger(inc)) h += '<div class="banner red" data-a="sheet" data-t="ba" style="cursor:pointer">INTERNAL BA WITH NO RIT. HIGH RISK.</div>';
   h += '<div id="timerbar"></div><div class="rems" id="rems"></div>';
-  if (isFire(inc)) h += '<div class="pinned" data-a="sheet" data-t="origin" style="cursor:pointer"><span class="small muted">POINT OF ORIGIN</span> <b>' + (inc.origin ? esc(inc.origin) : '<span class="amber">Tap to record</span>') + '</b></div>';
+  if (isFire(inc) && !inc.origin) h += '<div class="pinned" data-a="sheet" data-t="origin" style="cursor:pointer"><span class="small muted">POINT OF ORIGIN</span> <b><span class="amber">Tap to record</span></b></div>';
   h += '<div class="tiles">' + tiles(inc) + '</div>';
   h += '</div>';
   h += '<div class="actions"><div class="wrap">' + btn('Under control', 'quickWb', 'go', { v: 'uc' }) + btn('Stop', 'sheet', 'warn', { t: 'stopvar' }) + btn('Hand over', 'startHandover', '') + btn('End incident', 'endIncident', 'danger') + '</div></div>';
@@ -154,10 +155,9 @@ function tiles(inc) {
   // agencies
   const ag = inc.agencies.filter(a => a.status !== 'left');
   h += '<div class="tile" data-a="sheet" data-t="agencies"><div class="tt">Agencies</div><div class="ts">' + (inc.agencies.length ? inc.agencies.map(a => '<span class="s-' + a.status + '">' + esc(a.short || a.name) + ' ' + esc(AG_ST[a.status].toLowerCase()) + '</span>').join('<br>') : 'Police, AV, power co.') + '</div></div>';
-  // hazards & roads
-  const rc = inc.roads.filter(r => !r.open).length;
-  const hz = inc.hazards.filter(x => x.status !== 'removed');
-  h += '<div class="tile' + (rc ? ' alert' : '') + '" data-a="sheet" data-t="hazards"><div class="tt">Hazards &amp; roads</div><div class="ts">' + (rc ? '<b class="amber">' + rc + ' road closed</b><br>' : '') + (hz.length ? hz.map(x => '<span class="' + (x.status === 'managed' ? 'amber' : 'red') + '">' + esc(x.name) + '</span>').join(', ') : 'None logged') + '</div></div>';
+  // BA
+  const inside = baInside(inc).length;
+  h += '<div class="tile' + (noRitDanger(inc) ? ' bad' : inside ? ' alert' : '') + '" data-a="sheet" data-t="ba"><div class="tt">BA</div><div class="ts">' + (inc.ba.teams.length ? inside + ' team' + (inside === 1 ? '' : 's') + ' inside' + (noRitDanger(inc) ? '<br><b class="red">NO RIT</b>' : inc.ba.rit === 'ready' ? '<br><span class="green">RIT ready</span>' : '') : (inc.ba.control ? 'BA control set' : 'Not in use')) + '</div></div>';
   // tactics
   const tl = TACTICS[famOf(inc)] || TACTICS.inc;
   const done = inc.tactics.length;
@@ -165,9 +165,10 @@ function tiles(inc) {
   // contractors
   const co = inc.contractors;
   h += '<div class="tile' + (contractorsOpen(inc).length ? ' alert' : '') + '" data-a="sheet" data-t="contractors"><div class="tt">Contractors</div><div class="ts">' + (co.length ? co.map(x => '<span class="s-' + x.status + '">' + esc(x.type) + ' ' + esc(CON_ST[x.status].toLowerCase()) + '</span>').join('<br>') : 'None') + '</div></div>';
-  // BA
-  const inside = baInside(inc).length;
-  h += '<div class="tile' + (inside && !inc.ba.rit ? ' bad' : inside ? ' alert' : '') + '" data-a="sheet" data-t="ba"><div class="tt">BA</div><div class="ts">' + (inc.ba.teams.length ? inside + ' team' + (inside === 1 ? '' : 's') + ' inside' + (inc.ba.rit ? '' : '<br><b class="red">RIT not logged</b>') : (inc.ba.control ? 'BA control set' : 'Not in use')) + '</div></div>';
+  // hazards & roads
+  const rc = inc.roads.filter(r => !r.open).length;
+  const hz = inc.hazards.filter(x => x.status !== 'removed');
+  h += '<div class="tile' + (rc ? ' alert' : '') + '" data-a="sheet" data-t="hazards"><div class="tt">Hazards &amp; roads</div><div class="ts">' + (rc ? '<b class="amber">' + rc + ' road closed</b><br>' : '') + (hz.length ? hz.map(x => '<span class="' + (x.status === 'managed' ? 'amber' : 'red') + '">' + esc(x.name) + '</span>').join(', ') : 'None logged') + '</div></div>';
   // radio signals
   h += '<div class="tile" data-a="sheet" data-t="signals"><div class="tt">Radio signals</div><div class="ts">5-5 · 4-0 · 5-6 · 8-3 · 2-7</div></div>';
   // calls/notes
@@ -175,6 +176,7 @@ function tiles(inc) {
   // conditions
   const cd = inc.conditions || {};
   h += '<div class="tile" data-a="sheet" data-t="conditions"><div class="tt">Conditions</div><div class="ts">' + ([cd.temp && cd.temp + '°C', cd.wind && cd.wind + ' km/h', cd.dir, cd.rh && cd.rh + '% RH'].filter(Boolean).join(' · ') || 'Optional') + '</div></div>';
+  if (isFire(inc) && inc.origin) h += '<div class="tile" data-a="sheet" data-t="origin"><div class="tt">Point of origin</div><div class="ts">' + esc(inc.origin) + '</div></div>';
   // log
   h += '<div class="tile wide xwide" data-a="sheet" data-t="log"><div class="tt"><span>Log</span><span class="muted small">' + inc.log.length + ' entries</span></div><div class="log">' + inc.log.slice(-5).reverse().map(e => '<div class="e' + (e.late ? ' late' : '') + '"><span class="tm num">' + fmtT(e.t) + '</span><span>' + esc(e.text) + '</span></div>').join('') + '</div></div>';
   return h;

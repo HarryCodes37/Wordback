@@ -104,10 +104,10 @@ body.tb-over.acked #app{animation:none;box-shadow:inset 0 0 0 8px var(--red)}
 .actions .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-block:8px}
 .actions .btn{min-height:54px;padding:6px 4px;font-size:.82em}
 /* sheet */
-.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding-top:calc(env(safe-area-inset-top,0px) + 28px)}
 .sheet .pane{background:var(--bg);width:100%;max-width:760px;max-height:100%;overflow:auto;border-top:3px solid var(--line);border-radius:16px 16px 0 0;padding:14px max(14px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));-webkit-overflow-scrolling:touch}
-.sheet.full .pane{height:100%;border-radius:0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
-.sheet .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--bg);padding:6px 0;z-index:2}
+.sheet.full{padding-top:0}.sheet.full .pane{height:100%;border-radius:0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+.sheet .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--bg);padding:10px 0 8px;z-index:2}
 .script{background:#000;border:2px solid var(--fg);border-radius:10px;padding:14px;font-size:1.15em;font-weight:650;line-height:1.4;white-space:pre-wrap}
 .log{font-size:.9em}
 .log .e{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
@@ -124,6 +124,7 @@ body.tb-over.acked #app{animation:none;box-shadow:inset 0 0 0 8px var(--red)}
 .splash{text-align:center;padding:30px 0 10px}
 .splash .logo{font-size:2.6em;font-weight:900;letter-spacing:-.02em}
 .splash .logo span{color:var(--accent)}
+.banner.red{background:#5c1210;border-color:var(--red);color:#fff;font-weight:800;animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{background:#8a1a17}}@media (prefers-reduced-motion:reduce){.banner.red{animation:none}}
 .pinned{background:#2b1a0a;border:2px solid #a85a1a;border-radius:10px;padding:8px 12px;margin-top:8px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.92em}
 .kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
@@ -319,7 +320,7 @@ function pagedToAppliances(p, mine) {
     const d = dirByCode(t);
     if (d) { if (d.callsign !== mine) list.push({ callsign: d.callsign, code: t }); continue; }
     if (/^P\d{2}[A-Z]?$/.test(t)) { list.push({ callsign: 'FRV ' + t, code: t, frv: true }); continue; }
-    const bm = t.match(/^C([A-Z]{4})$/); if (bm) { const b = brigadeByCode(bm[1]); list.push({ callsign: b ? b.name + ' (brigade)' : t, code: t, brigadeOnly: true }); continue; }
+    if (/^C[A-Z]{4}$/.test(t)) continue; // brigade turnout, not an appliance
     const am = t.match(/^([A-Z]{4})([TPU]\w*)$/); if (am) { const b = brigadeByCode(am[1]); list.push({ callsign: b ? b.name + ' ' + (am[2][0] === 'T' ? 'Tanker ' : am[2][0] === 'P' ? 'Pumper ' : 'Ultralight ') + am[2].slice(1) : t, code: t }); continue; }
     list.push({ callsign: t, code: t });
   }
@@ -330,8 +331,9 @@ function pickKind(code, details) {
   for (const [k, re] of list) if (re && re.test(details)) return k;
   return 'Other';
 }
-function niceName(p) {
-  const det = titleCase(p.details || (CALL_TYPES[p.code] || {}).label || 'Incident');
+function niceName(p, kind) {
+  const ct = CALL_TYPES[p.code] || CALL_TYPES.INCIC;
+  const det = (kind && kind !== 'Other') ? kind.split(' / ')[0].replace(/\s*\(.*\)/, '') : ct.label;
   const road = roadName(p);
   return det + (road ? ', ' + titleCase(road) : '');
 }
@@ -377,7 +379,7 @@ function setAppStatus(inc, a, s, opts) {
   else if (s === 'onscene' && prev === 'rehab') logE(a.callsign + ' crew back from rehab');
   else logE(a.callsign + ' ' + plain);
   if (s === 'onscene' && prev === 'rehab') { a.rehabDue = t + S.settings.rehabWork * 60000; a.rehabBack = null; }
-  if (s === 'onscene' && prev !== 'water' && prev !== 'rehab') { a.onSince = t; a.rehabDue = t + S.settings.rehabWork * 60000; if (!a.mine && !(opts && opts.noReport) && inc.mode === 'control' && inc.onSceneAt) inc.unreported.push(a.id); }
+  if (s === 'onscene' && prev !== 'water' && prev !== 'rehab') { a.onSince = t; a.rehabDue = t + S.settings.rehabWork * 60000; }
   if (s === 'rehab') { a.rehabBack = t + ((S.settings.rehabLen || 20) + S.settings.rehabRest) * 60000; }
   if (s === 'released' || s === 'cancelled' || s === 'returning') { inc.unreported = inc.unreported.filter(x => x !== a.id); }
 }
@@ -409,7 +411,7 @@ function reminders(inc) {
   inc.apps.forEach(a => { if (a.status === 'rehab' && a.rehabBack && t >= a.rehabBack) r.push({ k: 'rehabback', id: a.id, text: a.callsign + ' rehab done?', cls: 'green' }); });
   if (inc.unreported.length && inc.mode === 'control') r.push({ k: 'arrivals', text: inc.unreported.length + ' arrival' + (inc.unreported.length > 1 ? 's' : '') + ' not told to FireCom', cls: 'amber' });
   inc.remind.forEach(x => r.push({ k: 'msg', id: x.id, text: x.text, cls: 'amber' }));
-  if (inc.mode === 'control' && baInside(inc).length && !inc.ba.rit) r.push({ k: 'rit', text: 'RIT not logged', cls: 'red' });
+  if (inc.mode === 'control' && inc.ba.teams.some(t => t.mode === 'internal' && !t.out) && !inc.ba.rit) r.push({ k: 'rit', text: 'Internal BA: RIT not set', cls: 'red' });
   const ab = areaBrigade(inc);
   if (inc.mode === 'control' && ab && ab.code !== S.settings.homeCode.replace(/^C/, '') && !inc.handover) {
     const on = inc.apps.find(a => a.status === 'onscene' && (a.callsign.indexOf(ab.name) === 0));
@@ -430,8 +432,7 @@ const RES = [
   { k: 'police40', label: 'Police URGENT (4-0)', radio: '4-0', plain: 'police URGENT', agency: 'Police' },
   { k: 'av', label: 'Ambulance', radio: 'Ambulance', plain: 'ambulance', agency: 'Ambulance (AV)' },
   { k: 'rescue', label: 'Rescue', radio: 'Rescue', plain: 'rescue' },
-  { k: 'tankers', label: 'More tankers', radio: 'make tankers', plain: 'more tankers' },
-  { k: 'hotday', label: 'Hot Day (make tankers 5)', radio: 'make tankers 5', plain: 'Hot Day response, make tankers 5' },
+  { k: 'tankers', label: 'Make tankers #', radio: 'make tankers', plain: 'make tankers' },
   { k: 'ba', label: 'BA support', radio: 'BA support', plain: 'BA support' },
   { k: 'air', label: 'Aircraft', radio: 'aircraft', plain: 'aircraft' },
   { k: 'frv', label: 'FRV', radio: 'FRV', plain: 'FRV' },
@@ -439,9 +440,14 @@ const RES = [
   { k: 'power', label: 'Power company', radio: 'power company', plain: 'power company', agency: 'Power company' },
   { k: 'contractor', label: 'Contractor / machinery', radio: 'contractor', plain: 'contractor', contractor: true }
 ];
+function radioFrom() {
+  const st = S.settings; const rank = (st.rank || '').replace(/^\d+(st|nd|rd|th)\s+/i, '').trim();
+  const sur = (st.name || '').trim().split(/\s+/).pop();
+  return sur ? (rank ? rank + ' ' : '') + sur : (rank ? rank + ' ' : '') + '[your name]';
+}
 function wbScript(inc, d) {
   const st = WB_STATUS[d.status] || {};
-  let s = 'FireCom, ' + controlLabel(inc) + ', wordback. ' + (d.status === 'falsealarm' ? 'False alarm' : wbType(inc)) + (d.desc ? ', ' + d.desc : '') + ', ' + (st.radio || '') + '.';
+  let s = 'FireCom, wordback from ' + radioFrom() + ', ' + (d.status === 'falsealarm' ? 'false alarm' : wbType(inc).toLowerCase()) + (d.desc ? ', ' + d.desc : '') + ', ' + (st.radio || '') + '.';
   const req = (d.res || []).map(k => { const r = RES.find(x => x.k === k); if (!r) return ''; if (k === 'tankers') return 'make tankers ' + (d.tankers || 2); if (k === 'contractor') return 'contractor' + (d.contractorType ? ' (' + d.contractorType.toLowerCase() + ')' : ''); return r.radio; }).filter(Boolean);
   if (req.length) s += ' Request ' + req.join(', ') + '.';
   if (d.extra) s += ' ' + d.extra.trim();
@@ -612,8 +618,9 @@ SCREENS.inc = () => {
   if (inc.mode === 'support') h += '<div class="banner">Support mode: not in control' + (inc.supportOf ? ' (' + esc(inc.supportOf) + ')' : '') + '. Timers off. ' + btn('Take control', 'takeControl', 'sm go') + '</div>';
   if (inc.mode === 'logonly') h += '<div class="banner">Log only: control handed to ' + esc(inc.handover ? inc.handover.to : '') + '. Timers off. ' + btn('Resume control', 'resumeControl', 'sm') + '</div>';
   if (my && (my.status === 'paged' || my.status === 'enroute') && inc.status === 'active') h += '<div style="margin-top:8px">' + btn(my.status === 'paged' ? 'Turning out' : 'ON SCENE', my.status === 'paged' ? 'myEnroute' : 'myOnScene', 'big ' + (my.status === 'paged' ? 'warn' : 'go')) + '</div>';
+  if (noRitDanger(inc)) h += '<div class="banner red" data-a="sheet" data-t="ba" style="cursor:pointer">INTERNAL BA WITH NO RIT. HIGH RISK.</div>';
   h += '<div id="timerbar"></div><div class="rems" id="rems"></div>';
-  if (isFire(inc)) h += '<div class="pinned" data-a="sheet" data-t="origin" style="cursor:pointer"><span class="small muted">POINT OF ORIGIN</span> <b>' + (inc.origin ? esc(inc.origin) : '<span class="amber">Tap to record</span>') + '</b></div>';
+  if (isFire(inc) && !inc.origin) h += '<div class="pinned" data-a="sheet" data-t="origin" style="cursor:pointer"><span class="small muted">POINT OF ORIGIN</span> <b><span class="amber">Tap to record</span></b></div>';
   h += '<div class="tiles">' + tiles(inc) + '</div>';
   h += '</div>';
   h += '<div class="actions"><div class="wrap">' + btn('Under control', 'quickWb', 'go', { v: 'uc' }) + btn('Stop', 'sheet', 'warn', { t: 'stopvar' }) + btn('Hand over', 'startHandover', '') + btn('End incident', 'endIncident', 'danger') + '</div></div>';
@@ -637,10 +644,9 @@ function tiles(inc) {
   // agencies
   const ag = inc.agencies.filter(a => a.status !== 'left');
   h += '<div class="tile" data-a="sheet" data-t="agencies"><div class="tt">Agencies</div><div class="ts">' + (inc.agencies.length ? inc.agencies.map(a => '<span class="s-' + a.status + '">' + esc(a.short || a.name) + ' ' + esc(AG_ST[a.status].toLowerCase()) + '</span>').join('<br>') : 'Police, AV, power co.') + '</div></div>';
-  // hazards & roads
-  const rc = inc.roads.filter(r => !r.open).length;
-  const hz = inc.hazards.filter(x => x.status !== 'removed');
-  h += '<div class="tile' + (rc ? ' alert' : '') + '" data-a="sheet" data-t="hazards"><div class="tt">Hazards &amp; roads</div><div class="ts">' + (rc ? '<b class="amber">' + rc + ' road closed</b><br>' : '') + (hz.length ? hz.map(x => '<span class="' + (x.status === 'managed' ? 'amber' : 'red') + '">' + esc(x.name) + '</span>').join(', ') : 'None logged') + '</div></div>';
+  // BA
+  const inside = baInside(inc).length;
+  h += '<div class="tile' + (noRitDanger(inc) ? ' bad' : inside ? ' alert' : '') + '" data-a="sheet" data-t="ba"><div class="tt">BA</div><div class="ts">' + (inc.ba.teams.length ? inside + ' team' + (inside === 1 ? '' : 's') + ' inside' + (noRitDanger(inc) ? '<br><b class="red">NO RIT</b>' : inc.ba.rit === 'ready' ? '<br><span class="green">RIT ready</span>' : '') : (inc.ba.control ? 'BA control set' : 'Not in use')) + '</div></div>';
   // tactics
   const tl = TACTICS[famOf(inc)] || TACTICS.inc;
   const done = inc.tactics.length;
@@ -648,9 +654,10 @@ function tiles(inc) {
   // contractors
   const co = inc.contractors;
   h += '<div class="tile' + (contractorsOpen(inc).length ? ' alert' : '') + '" data-a="sheet" data-t="contractors"><div class="tt">Contractors</div><div class="ts">' + (co.length ? co.map(x => '<span class="s-' + x.status + '">' + esc(x.type) + ' ' + esc(CON_ST[x.status].toLowerCase()) + '</span>').join('<br>') : 'None') + '</div></div>';
-  // BA
-  const inside = baInside(inc).length;
-  h += '<div class="tile' + (inside && !inc.ba.rit ? ' bad' : inside ? ' alert' : '') + '" data-a="sheet" data-t="ba"><div class="tt">BA</div><div class="ts">' + (inc.ba.teams.length ? inside + ' team' + (inside === 1 ? '' : 's') + ' inside' + (inc.ba.rit ? '' : '<br><b class="red">RIT not logged</b>') : (inc.ba.control ? 'BA control set' : 'Not in use')) + '</div></div>';
+  // hazards & roads
+  const rc = inc.roads.filter(r => !r.open).length;
+  const hz = inc.hazards.filter(x => x.status !== 'removed');
+  h += '<div class="tile' + (rc ? ' alert' : '') + '" data-a="sheet" data-t="hazards"><div class="tt">Hazards &amp; roads</div><div class="ts">' + (rc ? '<b class="amber">' + rc + ' road closed</b><br>' : '') + (hz.length ? hz.map(x => '<span class="' + (x.status === 'managed' ? 'amber' : 'red') + '">' + esc(x.name) + '</span>').join(', ') : 'None logged') + '</div></div>';
   // radio signals
   h += '<div class="tile" data-a="sheet" data-t="signals"><div class="tt">Radio signals</div><div class="ts">5-5 · 4-0 · 5-6 · 8-3 · 2-7</div></div>';
   // calls/notes
@@ -658,6 +665,7 @@ function tiles(inc) {
   // conditions
   const cd = inc.conditions || {};
   h += '<div class="tile" data-a="sheet" data-t="conditions"><div class="tt">Conditions</div><div class="ts">' + ([cd.temp && cd.temp + '°C', cd.wind && cd.wind + ' km/h', cd.dir, cd.rh && cd.rh + '% RH'].filter(Boolean).join(' · ') || 'Optional') + '</div></div>';
+  if (isFire(inc) && inc.origin) h += '<div class="tile" data-a="sheet" data-t="origin"><div class="tt">Point of origin</div><div class="ts">' + esc(inc.origin) + '</div></div>';
   // log
   h += '<div class="tile wide xwide" data-a="sheet" data-t="log"><div class="tt"><span>Log</span><span class="muted small">' + inc.log.length + ' entries</span></div><div class="log">' + inc.log.slice(-5).reverse().map(e => '<div class="e' + (e.late ? ' late' : '') + '"><span class="tm num">' + fmtT(e.t) + '</span><span>' + esc(e.text) + '</span></div>').join('') + '</div></div>';
   return h;
@@ -807,6 +815,29 @@ const SITREP_PICKS = {
   veh: [['vtype', 'Vehicle', ['Car', 'Ute / 4WD', 'Truck', 'Tractor / machinery', 'Bus', 'Caravan']], ['extent', 'Extent', ['Engine bay', 'Cabin', 'Fully involved', 'Knocked down']], ['leak', 'Fuel leak', ['None', 'Minor', 'Significant']]]
 };
 SITREP_PICKS.mva = SITREP_PICKS.veh; SITREP_PICKS.nostc = SITREP_PICKS.veh;
+function srPhrase(k, v) {
+  const l = v.toLowerCase();
+  switch (k) {
+    case 'size': return 'approx ' + v;
+    case 'dir': return 'heading ' + v;
+    case 'ros': return l === 'nil' ? 'no forward spread' : l + ' rate of spread';
+    case 'flame': return 'flame height ' + v;
+    case 'fuel': return l + ' fuel';
+    case 'btype': return l;
+    case 'area': return l === 'whole building' ? 'whole building involved' : l + ' involved';
+    case 'smoke': return l === 'nil visible' ? 'no smoke visible' : l + ' smoke';
+    case 'vtype': return l;
+    case 'leak': return l === 'none' ? 'no fuel leak' : l + ' fuel leak';
+    default: return l;
+  }
+}
+const SR_TACTICS = {
+  gs: ['Direct attack', 'Flank attack', 'Parallel attack', 'Defensive', 'Asset protection', 'Blacking out', 'Patrolling'],
+  struc: ['Offensive internal', 'Defensive external', 'Exposure protection', 'Ventilation', 'Search and rescue', 'Overhaul'],
+  veh: ['Direct attack', 'Foam', 'Fuel spill control', 'Exposure protection'],
+  other: ['Direct attack', 'Defensive', 'Exposure protection', 'Containment', 'Hazard made safe']
+};
+SR_TACTICS.mva = SR_TACTICS.veh; SR_TACTICS.nostc = SR_TACTICS.veh;
 const THREATS = ['Nil', 'Houses', 'Sheds / outbuildings', 'Livestock', 'Fences', 'Crops / pasture', 'Road', 'Power lines', 'Bush / plantation'];
 function changesSince(inc) {
   const last = inc.sitreps[inc.sitreps.length - 1]; const since = last ? last.t : (inc.wordbacks[0] ? inc.wordbacks[0].t : 0);
@@ -816,9 +847,10 @@ function taskSummary(inc) { return inc.apps.filter(a => a.status === 'onscene' &
 function sitrepText(inc, d) {
   const picks = SITREP_PICKS[famOf(inc)] || [];
   const parts = [];
-  picks.forEach(([k, lab]) => { if (d.f[k]) parts.push(k === 'dir' ? 'heading ' + d.f[k] : k === 'ros' ? d.f[k].toLowerCase() + ' rate of spread' : k === 'flame' ? 'flame height ' + d.f[k] : (lab === 'Size' ? 'approx ' + d.f[k] : d.f[k].toLowerCase()) ); });
-  let s = 'FireCom, ' + controlLabel(inc) + ', sitrep. ';
+  picks.forEach(([k]) => { if (d.f[k]) parts.push(srPhrase(k, d.f[k])); });
+  let s = 'FireCom, sitrep from ' + radioFrom() + ', ' + wbType(inc).toLowerCase() + '. ';
   if (parts.length) s += titleFirst(parts.join(', ')) + '. ';
+  if (d.tac && d.tac.length) s += 'Tactics: ' + d.tac.join(', ').toLowerCase() + '. ';
   if (d.threat && d.threat.length) s += 'Threatening: ' + d.threat.join(', ').toLowerCase() + '. ';
   if (d.potential) s += d.potential.trim().replace(/\.?$/, '. ');
   if (d.eta) s += 'Expect under control ' + d.eta + '. ';
@@ -834,6 +866,7 @@ SHEETS.sitrep = s => {
   const di = dueInfo(inc);
   if (di && di.kind === 'sitrep' && di.due <= now()) h += '<div class="banner amber">Sitrep due. Update the wordback status or request resources if things have changed. <div class="row" style="margin-top:6px">' + btn('Update wordback', 'openWb', 'sm') + btn('Request resources', 'openWbRes', 'sm') + '</div></div>';
   (SITREP_PICKS[fam] || []).forEach(([k, lab, opts]) => { h += '<label class="f">' + esc(lab) + '</label><div class="chips">' + opts.map(o => chip(o, d.f[k] === o, 'srPick', { k, v: o })).join('') + '</div>'; });
+  h += '<label class="f">Tactics in use</label><div class="chips">' + (SR_TACTICS[fam] || SR_TACTICS.other).map(o => chip(o, (d.tac || []).includes(o), 'srTac', { v: o })).join('') + '</div>';
   h += '<label class="f">Threatening</label><div class="chips">' + THREATS.map(o => chip(o, (d.threat || []).includes(o), 'srThreat', { v: o })).join('') + '</div>';
   h += '<label class="f">Potential / prediction</label><input type="text" id="sr_pot" data-sbind="d.potential" value="' + esc(d.potential || '') + '" placeholder="e.g. potential to reach Newnan Lane">';
   h += '<label class="f">Expect under control</label><div class="chips">' + ['in 5 minutes', 'in 15 minutes', 'in 30 minutes', 'in 1 hour', 'in 2+ hours'].map(o => chip(o, d.eta === o, 'srEta', { v: o })).join('') + '</div>';
@@ -849,7 +882,7 @@ SHEETS.message = s => {
   const inc = curInc(); const d = s.d;
   let h = sheetHd('Message');
   h += '<p class="muted">For anything outside a wordback or sitrep.</p><input type="text" id="msg_txt" data-sbind="d.text" value="' + esc(d.text || '') + '" placeholder="e.g. 5-6 on scene">';
-  h += '<h3>Script</h3>' + script('FireCom, ' + controlLabel(inc) + ', message: ' + (d.text || '...'));
+  h += '<h3>Script</h3>' + script('FireCom, message from ' + radioFrom() + ': ' + (d.text || '...'));
   h += '<div class="stack" style="margin-top:12px">' + btn('Sent', 'msgSent', 'big go') + btn('Cancel', 'closeSheet', 'ghost') + '</div>';
   if (inc.messages.length) h += '<h3>Sent</h3><div class="log">' + inc.messages.map(m => '<div class="e"><span class="tm">' + fmtT(m.t) + '</span><span>' + esc(m.text) + '</span></div>').join('') + '</div>';
   return h;
@@ -860,7 +893,7 @@ function smeacs(inc) {
   const haz = inc.hazards.filter(x => x.status !== 'removed').map(x => x.name + (x.status === 'managed' ? ' (managed)' : ''));
   const ls = inc.sitreps[inc.sitreps.length - 1];
   return [
-    ['S', 'Situation', [wbType(inc) + (inc.kind ? ' (' + inc.kind + ')' : '') + ' at ' + titleCase(inc.p.address || ''), lw ? 'Status: ' + WB_STATUS[lw.status].plain + ' (' + fmtT(lw.t) + ')' : 'No wordback yet', ls ? 'Last sitrep: ' + ls.text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '') : '', inc.origin ? 'Origin: ' + inc.origin : ''].filter(Boolean)],
+    ['S', 'Situation', [wbType(inc) + (inc.kind ? ' (' + inc.kind + ')' : '') + ' at ' + titleCase(inc.p.address || ''), lw ? 'Status: ' + WB_STATUS[lw.status].plain + ' (' + fmtT(lw.t) + ')' : 'No wordback yet', ls ? 'Last sitrep: ' + ls.text.replace(/^FireCom, sitrep from [^.]*\.\s*/, '') : '', inc.origin ? 'Origin: ' + inc.origin : ''].filter(Boolean)],
     ['M', 'Mission', [inc.mission || 'Protect life, property and environment; contain and extinguish.']],
     ['E', 'Execution', taskSummary(inc).length ? taskSummary(inc) : ['No taskings logged']],
     ['A', 'Administration', [countsText(inc), inc.contractors.length ? 'Contractors: ' + inc.contractors.map(c => c.type + ' (' + CON_ST[c.status] + ')').join(', ') : '', inc.roads.filter(r => !r.open).length ? 'Roads closed: ' + inc.roads.filter(r => !r.open).map(r => r.road).join(', ') : ''].filter(Boolean)],
@@ -939,20 +972,23 @@ function machineMs(c) { return (c.runs || []).reduce((s, r) => s + ((r.end || no
 SHEETS.ba = s => {
   const inc = curInc(); const b = inc.ba;
   let h = sheetHd('Breathing apparatus');
+  if (noRitDanger(inc)) h += '<div class="banner red">INTERNAL BA WITH NO RIT. HIGH RISK.</div>';
   h += '<div class="chips">' + chip(b.control ? 'BA control established' : 'BA control not set', b.control, 'baCtl') + '</div>';
   h += '<div class="row"><div class="grow"><label class="f">BA control (who)</label><input type="text" id="ba_who" data-bind="ba.who" value="' + esc(b.who) + '" placeholder="Name / appliance"></div><div class="grow"><label class="f">BA channel</label><input type="text" id="ba_ch" data-bind="ba.ch" value="' + esc(b.ch) + '" placeholder="e.g. 353" inputmode="numeric"></div></div>';
-  h += '<label class="f">Search pattern</label><div class="chips">' + chip('Left hand', b.pattern === 'Left hand', 'baPat', { v: 'Left hand' }) + chip('Right hand', b.pattern === 'Right hand', 'baPat', { v: 'Right hand' }) + '</div>';
-  h += '<label class="f">Rapid intervention team</label>' + (b.rit ? '<p><b class="green">' + esc(b.rit) + '</b> ' + btn('Change', 'baRitClear', 'sm ghost') + '</p>' : '<div class="row"><div class="grow"><input type="text" id="ba_rit" data-sbind="rit" value="' + esc(s.rit || '') + '" placeholder="RIT crew / appliance"></div>' + btn('Log RIT', 'baRit', 'sm go') + btn('RIT not available', 'baRitNA', 'sm warn') + '</div>');
+  h += '<label class="f">Rapid intervention team</label><div class="chips">' + chip('RIT ready', b.rit === 'ready', 'baRitSet', { v: 'ready' }, b.rit === 'ready' ? 'green' : '') + chip('No RIT', b.rit === 'none', 'baRitSet', { v: 'none' }, b.rit === 'none' ? 'red' : '') + '</div>';
   h += '<h3>Teams</h3>';
   b.teams.forEach(t => {
     const inside = t.in && !t.out;
-    h += '<div class="card" style="margin-top:6px' + (inside ? ';border-color:var(--amber)' : '') + '"><div class="row" style="justify-content:space-between"><b>' + esc(t.name) + '</b><span class="small">' + (t.in ? 'In ' + fmtT(t.in) : '') + (t.out ? ' · Out ' + fmtT(t.out) : '') + (inside ? ' · <b class="amber num" data-since="' + t.in + '">' + fmtDur(now() - t.in) + '</b>' : '') + '</span></div>';
-    h += '<input type="text" id="bt_' + t.id + '" data-bind="ba.teams.#' + t.id + '.names" value="' + esc(t.names || '') + '" placeholder="Names or count" style="margin-top:6px">';
-    h += '<div class="row" style="margin-top:6px">' + (!t.in ? btn('Entered', 'baIn', 'sm warn', { id: t.id }) : !t.out ? btn('Exited', 'baOut', 'sm go', { id: t.id }) : '<span class="green small">Out</span>') + '</div></div>';
+    h += '<div class="card" style="margin-top:6px' + (inside ? ';border-color:var(--amber)' : '') + '"><div class="row" style="justify-content:space-between"><b>' + esc(t.name) + '</b><span class="small">' + (t.in ? 'In ' + fmtT(t.in) : '') + (t.out ? ' · Out ' + fmtT(t.out) : '') + (inside ? ' · <b class="amber num">' + fmtDur(now() - t.in) + '</b>' : '') + '</span></div>';
+    h += '<div class="chips" style="margin-top:6px">' + chip('External', t.mode === 'external', 'baMode', { id: t.id, v: 'external' }) + chip('Internal', t.mode === 'internal', 'baMode', { id: t.id, v: 'internal' }) + '</div>';
+    if (t.mode === 'internal') h += '<div class="chips" style="margin-top:6px">' + chip('Left hand search', t.pattern === 'Left hand', 'baPat', { id: t.id, v: 'Left hand' }) + chip('Right hand search', t.pattern === 'Right hand', 'baPat', { id: t.id, v: 'Right hand' }) + '</div>';
+    h += '<input type="text" id="bt_' + t.id + '" data-bind="ba.teams.#' + t.id + '.names" value="' + esc(t.names || '') + '" placeholder="Names or count (optional)" style="margin-top:6px">';
+    h += '<div class="row" style="margin-top:6px">' + (!t.in ? btn('Entered', 'baIn', 'sm warn', { id: t.id }) : !t.out ? btn('Exited', 'baOut', 'sm go', { id: t.id }) : '<span class="green small">Out</span>') + (!t.in ? btn('Remove', 'baRm', 'sm ghost', { id: t.id }) : '') + '</div></div>';
   });
-  h += '<div style="margin-top:8px">' + btn('+ Add BA team', 'baAdd', 'full') + '</div>';
+  h += '<label class="f">Add team</label><div class="chips">' + [1, 2, 3, 4, 5, 6].map(n => { const nm = 'Team ' + n; const has = b.teams.some(t => t.name === nm); return chip(nm, has, has ? 'noop' : 'baAddN', { v: nm }); }).join('') + '</div>';
   return h;
 };
+function noRitDanger(inc) { return inc.ba.rit === 'none' && inc.ba.teams.some(t => t.mode === 'internal' && !t.out); }
 /* ---- Radio signals ---- */
 const SIGNALS = [['5-5', 'Hostile act, significant violence or terrorism', 'Radio signal 5-5: hostile act'], ['4-0', 'Urgent police, crew or public under threat', 'Radio signal 4-0: urgent police attendance requested'], ['5-6', 'Police attendance (non-urgent)', 'Radio signal 5-6: police requested (non-urgent)'], ['8-3', 'Deceased person', 'Radio signal 8-3: deceased person'], ['2-7', 'CIS / peer support required', 'Radio signal 2-7: peer support requested']];
 SHEETS.signals = () => sheetHd('Radio signals') + '<div class="stack">' + SIGNALS.map(([c, m]) => '<button class="btn big" data-a="sigTap" data-v="' + c + '" style="text-align:left"><span style="font-size:1.3em">' + c + '</span> <span class="small" style="font-weight:500">' + esc(m) + '</span></button>').join('') + '</div>';
@@ -1123,7 +1159,7 @@ function exportText(inc) {
   if (inc.conditions && Object.values(inc.conditions).some(Boolean)) { const c = inc.conditions; L.push(''); L.push('Conditions: ' + [c.temp && c.temp + 'C', c.wind && c.wind + ' km/h', c.dir && 'from ' + c.dir, c.rh && c.rh + '% RH', c.notes].filter(Boolean).join(', ')); }
   if (inc.origin) L.push('Point of origin: ' + inc.origin);
   L.push(''); L.push('WORDBACKS AND SITREPS'); L.push(hr);
-  [].concat(inc.wordbacks.map(w => [w.t, 'Wordback: ' + w.plain]), inc.sitreps.map(x => [x.t, 'Sitrep: ' + x.text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '')]), inc.messages.map(m => [m.t, 'Message: ' + m.text])).sort((a, b) => a[0] - b[0]).forEach(([t, x]) => L.push(fmtT(t) + ' ' + x));
+  [].concat(inc.wordbacks.map(w => [w.t, 'Wordback: ' + w.plain]), inc.sitreps.map(x => [x.t, 'Sitrep: ' + x.text.replace(/^FireCom, sitrep from [^.]*\.\s*/, '')]), inc.messages.map(m => [m.t, 'Message: ' + m.text])).sort((a, b) => a[0] - b[0]).forEach(([t, x]) => L.push(fmtT(t) + ' ' + x));
   L.push(''); L.push('APPLIANCES'); L.push(hr);
   inc.apps.forEach(a => { L.push(a.callsign + (a.code ? ' (' + a.code + ')' : '') + (a.crew ? ', crew ' + a.crew : '') + (a.oic ? ', OIC ' + a.oic : '')); L.push('   ' + a.hist.filter(x => x.t <= cut).map(x => ST_LABEL[x.s] + ' ' + fmtT(x.t)).join(', ')); if (a.tasks.length) L.push('   Taskings: ' + a.tasks.map(t => fmtT(t.t) + ' ' + taskText(t)).join('; ')); });
   if (inc.agencies.length) { L.push(''); L.push('AGENCIES'); L.push(hr); inc.agencies.forEach(a => L.push(a.name + (a.note ? ' (' + a.note + ')' : '') + ': ' + a.hist.map(x => AG_ST[x.s] + ' ' + fmtT(x.t)).join(', '))); }
@@ -1131,7 +1167,7 @@ function exportText(inc) {
   if (inc.roads.length) { L.push(''); L.push('ROAD CLOSURES'); L.push(hr); inc.roads.forEach(r => L.push(r.road + ': closed ' + fmtT(r.closed) + (r.reason ? ' (' + r.reason + ')' : '') + (r.by ? ' by ' + r.by : '') + ', ' + (r.open ? 'reopened ' + fmtT(r.open) + (r.reopenReason ? ' (' + r.reopenReason + ')' : '') : 'NOT REOPENED'))); }
   if (inc.hazards.length) { L.push(''); L.push('HAZARDS: ' + inc.hazards.map(x => x.name + ' (' + x.status + ')').join(', ')); }
   if (inc.tactics.length) { L.push(''); L.push('ACTIONS'); L.push(hr); inc.tactics.forEach(t => L.push(fmtT(t.t) + ' ' + t.item + (t.note ? ' (' + t.note + ')' : ''))); }
-  if (inc.ba.teams.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.who || '-') + ', channel ' + (inc.ba.ch || '-') + ', search ' + (inc.ba.pattern || '-') + ', RIT ' + (inc.ba.rit || '-')); inc.ba.teams.forEach(t => L.push(t.name + ' (' + (t.names || '') + '): in ' + fmtT(t.in) + ', out ' + fmtT(t.out))); }
+  if (inc.ba.teams.length) { L.push(''); L.push('BA'); L.push(hr); L.push('BA control: ' + (inc.ba.who || '-') + ', channel ' + (inc.ba.ch || '-') + ', RIT ' + (inc.ba.rit === 'ready' ? 'ready' : inc.ba.rit === 'none' ? 'NONE' : '-')); inc.ba.teams.forEach(t => L.push(t.name + ' ' + (t.mode || '') + (t.pattern ? ', ' + t.pattern.toLowerCase() + ' search' : '') + (t.names ? ' (' + t.names + ')' : '') + ': in ' + fmtT(t.in) + ', out ' + fmtT(t.out))); }
   if (inc.calls.length) { L.push(''); L.push('PHONE CALLS'); L.push(hr); inc.calls.forEach(c => L.push(fmtT(c.t) + ' ' + c.who + ': ' + c.what)); }
   const s = inc.summary || {};
   L.push(''); L.push('END OF JOB'); L.push(hr);
@@ -1245,7 +1281,7 @@ const A = {
     if (!raw.trim()) { toast('Paste the pager message first'); return; }
     const p = parsePager(raw); if (!p.ok) toast('Could not read all of that. Check the details.');
     if (!p.code) p.code = 'INCIC';
-    inc.p = p; inc.pageTime = now(); inc.name = niceName(p); inc.kind = pickKind(p.code, p.details);
+    inc.p = p; inc.pageTime = now(); inc.kind = pickKind(p.code, p.details); inc.name = niceName(p, inc.kind); inc.nameAuto = true;
     inc.apps = inc.apps.filter(a => a.mine);
     pagedToAppliances(p, inc.myApp).forEach(o => addApp(inc, o, 'paged'));
     const m = myApp(inc); if (m.status === 'paged') setAppStatus(inc, m, 'enroute'); // auto-log turning out
@@ -1255,7 +1291,7 @@ const A = {
   wizSkipPager() { const inc = S.cur; inc.p = Object.assign(parsePager(''), { code: 'INCIC', resp: '3' }); const m = myApp(inc); if (m.status === 'paged') setAppStatus(inc, m, 'enroute'); S.wiz.step = 3; inc.wizStep = 3; commit(); },
   pageAdj(d) { S.cur.pageTime += Number(d.v) * 60000; commit(); },
   wizRmApp(d) { S.cur.apps = S.cur.apps.filter(a => a.id !== d.id); commit(); },
-  wizKind(d) { S.cur.kind = d.v; commit(); },
+  wizKind(d) { S.cur.kind = d.v; if (S.cur.nameAuto !== false) S.cur.name = niceName(S.cur.p, d.v); commit(); },
   wizStart(d) {
     const inc = S.cur; delete inc.wizStep; inc.mode = 'control';
     if (!inc.controlName) inc.controlName = defaultControl(inc);
@@ -1351,12 +1387,13 @@ const A = {
     closeSheet(); commit();
   },
   /* sitrep / message */
-  openSitrep() { const inc = S.cur; const prev = inc.sitreps[inc.sitreps.length - 1]; openSheet({ type: 'sitrep', d: { f: prev ? clone(prev.f || {}) : {}, threat: prev ? (prev.threat || []).slice() : [], useTasks: true, useChanges: true, potential: '', eta: '' } }); },
+  openSitrep() { const inc = S.cur; const prev = inc.sitreps[inc.sitreps.length - 1]; openSheet({ type: 'sitrep', d: { f: prev ? clone(prev.f || {}) : {}, threat: prev ? (prev.threat || []).slice() : [], tac: prev ? (prev.tac || []).slice() : [], useTasks: true, useChanges: true, potential: '', eta: '' } }); },
   srPick(d) { const f = S.sheet.d.f; f[d.k] = f[d.k] === d.v ? '' : d.v; renderSheet(); },
   srThreat(d) { const r = S.sheet.d.threat; const i = r.indexOf(d.v); if (i >= 0) r.splice(i, 1); else { if (d.v === 'Nil') r.length = 0; else { const n = r.indexOf('Nil'); if (n >= 0) r.splice(n, 1); } r.push(d.v); } renderSheet(); },
+  srTac(d) { const r = S.sheet.d.tac = S.sheet.d.tac || []; const i = r.indexOf(d.v); if (i >= 0) r.splice(i, 1); else r.push(d.v); renderSheet(); },
   srEta(d) { S.sheet.d.eta = S.sheet.d.eta === d.v ? '' : d.v; renderSheet(); },
   srTog(d) { S.sheet.d[d.v] = !S.sheet.d[d.v]; renderSheet(); },
-  srSent() { const inc = S.cur, d = S.sheet.d, t = now(); const text = sitrepText(inc, d); inc.sitreps.push({ t, text, f: clone(d.f), threat: d.threat.slice() }); logE('Sitrep: ' + text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '')); inc.sitrepDue = t + S.settings.sitrepRepeat * 60000; closeSheet(); commit(); },
+  srSent() { const inc = S.cur, d = S.sheet.d, t = now(); const text = sitrepText(inc, d); inc.sitreps.push({ t, text, f: clone(d.f), threat: d.threat.slice(), tac: (d.tac || []).slice() }); logE('Sitrep: ' + text.replace(/^FireCom, sitrep from [^.]*\.\s*/, '')); inc.sitrepDue = t + S.settings.sitrepRepeat * 60000; closeSheet(); commit(); },
   openMsg() { openSheet({ type: 'message', d: { text: '' } }); },
   msgSent() { const inc = S.cur, d = S.sheet.d; if (!d.text) return; inc.messages.push({ t: now(), text: d.text }); logE('Message to FireCom: ' + d.text); closeSheet(); commit(); },
 
@@ -1368,7 +1405,7 @@ const A = {
     a.status = d.v; a.hist.push({ t: now(), s: d.v }); logE(a.name + ' ' + AG_ST[d.v].toLowerCase());
     if (a.name === 'Police' && d.v === 'onscene') inc.hazards.forEach(h => { if (h.name === 'Traffic' && h.status === 'identified') { h.status = 'managed'; logE('Traffic hazard managed (5-6 on scene)'); } });
     commit();
-    if (d.v === 'onscene' && inc.mode === 'control') { const nm = agencyRadioName(a); radioPrompt({ title: a.name + ' on scene', text: 'FireCom, ' + controlLabel(inc) + ', message: ' + nm + ' on scene.', plain: a.name + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: a.name + ' on scene' }); logE('Message to FireCom: ' + a.name + ' on scene'); }); }
+    if (d.v === 'onscene' && inc.mode === 'control') { const nm = agencyRadioName(a); radioPrompt({ title: a.name + ' on scene', text: 'FireCom, message from ' + radioFrom() + ': ' + nm + ' on scene.', plain: a.name + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: a.name + ' on scene' }); logE('Message to FireCom: ' + a.name + ' on scene'); }); }
     if (d.v === 'left' && a.name === 'Police' && inc.roads.some(r => !r.open)) askConfirm('Road reopened?', '5-6 has left but a road is still logged as closed.', 'Open road closures', () => { openSheet({ type: 'hazards' }); }, 'go');
   },
   /* hazards + roads */
@@ -1400,17 +1437,18 @@ const A = {
     if (d.v === 'left' && (c.runs || []).some(r => !r.end)) { const r = c.runs.find(r => !r.end); r.end = now(); logE('Contractor ' + c.type.toLowerCase() + ' machine stopped'); }
     c.status = d.v; c.hist.push({ t: now(), s: d.v }); logE('Contractor ' + c.type.toLowerCase() + (c.company ? ' (' + c.company + ')' : '') + ' ' + CON_ST[d.v].toLowerCase());
     commit();
-    if (d.v === 'onscene' && inc.mode === 'control') radioPrompt({ title: 'Contractor on scene', text: 'FireCom, ' + controlLabel(inc) + ', message: contractor ' + c.type.toLowerCase() + ' on scene.', plain: 'contractor ' + c.type.toLowerCase() + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: 'Contractor ' + c.type.toLowerCase() + ' on scene' }); logE('Message to FireCom: contractor ' + c.type.toLowerCase() + ' on scene'); });
+    if (d.v === 'onscene' && inc.mode === 'control') radioPrompt({ title: 'Contractor on scene', text: 'FireCom, message from ' + radioFrom() + ': contractor ' + c.type.toLowerCase() + ' on scene.', plain: 'contractor ' + c.type.toLowerCase() + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: 'Contractor ' + c.type.toLowerCase() + ' on scene' }); logE('Message to FireCom: contractor ' + c.type.toLowerCase() + ' on scene'); });
   },
   conRun(d) { const c = S.cur.contractors.find(x => x.id === d.id); c.runs = c.runs || []; const r = c.runs.find(r => !r.end); if (r) { r.end = now(); logE('Contractor ' + c.type.toLowerCase() + ' machine stopped (' + fmtHrs(machineMs(c)) + ' total)'); } else { c.runs.push({ start: now(), end: null }); logE('Contractor ' + c.type.toLowerCase() + ' machine started'); } commit(); },
   /* BA */
   baCtl() { const b = S.cur.ba; b.control = !b.control; logE(b.control ? 'BA control established' + (b.who ? ': ' + b.who : '') : 'BA control stood down'); commit(); },
-  baPat(d) { S.cur.ba.pattern = d.v; logE('BA search pattern: ' + d.v.toLowerCase()); commit(); },
-  baRit() { const v = (S.sheet.rit || '').trim(); if (!v) { toast('Who is RIT?'); return; } S.cur.ba.rit = v; logE('RIT: ' + v); commit(); },
-  baRitNA() { S.cur.ba.rit = 'RIT not available'; logE('RIT not available'); commit(); },
-  baRitClear() { S.cur.ba.rit = ''; commit(); },
-  baAdd() { const b = S.cur.ba; b.teams.push({ id: uid(), name: 'Team ' + (b.teams.length + 1), names: '', in: null, out: null }); commit(); },
-  baIn(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.in = now(); logE('BA ' + t.name + ' entered' + (t.names ? ' (' + t.names + ')' : '')); commit(); },
+  baPat(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.pattern = d.v; logE('BA ' + t.name + ': ' + d.v.toLowerCase() + ' search'); commit(); },
+  baMode(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.mode = d.v; if (d.v === 'external') t.pattern = ''; logE('BA ' + t.name + ': ' + d.v); commit(); },
+  baRitSet(d) { const b = S.cur.ba; b.rit = b.rit === d.v ? '' : d.v; logE(b.rit === 'ready' ? 'RIT ready' : b.rit === 'none' ? 'No RIT available' : 'RIT cleared'); commit(); },
+  baAddN(d) { S.cur.ba.teams.push({ id: uid(), name: d.v, mode: '', pattern: '', names: '', in: null, out: null }); logE('BA ' + d.v + ' set up'); commit(); },
+  baRm(d) { const b = S.cur.ba; b.teams = b.teams.filter(t => t.id !== d.id); commit(); },
+  noop() {},
+  baIn(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); if (!t.mode) { toast('Internal or external?'); return; } t.in = now(); logE('BA ' + t.name + ' entered (' + t.mode + (t.pattern ? ', ' + t.pattern.toLowerCase() + ' search' : '') + ')' + (t.names ? ': ' + t.names : '')); commit(); },
   baOut(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.out = now(); logE('BA ' + t.name + ' exited (' + fmtDur(t.out - t.in) + ')'); commit(); },
   /* signals, notes, misc */
   sigTap(d) { const inc = S.cur; const s = SIGNALS.find(x => x[0] === d.v); radioPrompt({ title: 'Radio signal ' + s[0], text: 'FireCom, ' + controlLabel(inc) + ', radio signal ' + s[0] + '.', plain: s[2], later: false }, () => { logE(s[2]); if (s[0] === '5-6' || s[0] === '4-0') ensureAgency(inc, 'Police', 'requested'); }); },
@@ -1472,7 +1510,7 @@ function patchSheetLive() {
 document.addEventListener('input', e => {
   const el = e.target; const ds = el.dataset; const v = el.value;
   if (el.id === 'pager') { if (S.wiz) S.wiz.raw = v; return; }
-  if (ds.bind && S.cur) { setPath(S.cur, ds.bind, v); saveSoon(); patchSheetLive(); return; }
+  if (ds.bind && S.cur) { if (ds.bind === 'name') S.cur.nameAuto = false; setPath(S.cur, ds.bind, v); saveSoon(); patchSheetLive(); return; }
   if (ds.sbind && S.sheet) { setPath(S.sheet, ds.sbind, v); patchSheetLive(); return; }
   if (ds.hbind && S.cur && S.cur.hoDraft) { S.cur.hoDraft[ds.hbind] = v; saveSoon(); return; }
   if (ds.setbind) { S.settings[ds.setbind] = v; saveSettings(); return; }

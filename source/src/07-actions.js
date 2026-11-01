@@ -38,7 +38,7 @@ const A = {
     if (!raw.trim()) { toast('Paste the pager message first'); return; }
     const p = parsePager(raw); if (!p.ok) toast('Could not read all of that. Check the details.');
     if (!p.code) p.code = 'INCIC';
-    inc.p = p; inc.pageTime = now(); inc.name = niceName(p); inc.kind = pickKind(p.code, p.details);
+    inc.p = p; inc.pageTime = now(); inc.kind = pickKind(p.code, p.details); inc.name = niceName(p, inc.kind); inc.nameAuto = true;
     inc.apps = inc.apps.filter(a => a.mine);
     pagedToAppliances(p, inc.myApp).forEach(o => addApp(inc, o, 'paged'));
     const m = myApp(inc); if (m.status === 'paged') setAppStatus(inc, m, 'enroute'); // auto-log turning out
@@ -48,7 +48,7 @@ const A = {
   wizSkipPager() { const inc = S.cur; inc.p = Object.assign(parsePager(''), { code: 'INCIC', resp: '3' }); const m = myApp(inc); if (m.status === 'paged') setAppStatus(inc, m, 'enroute'); S.wiz.step = 3; inc.wizStep = 3; commit(); },
   pageAdj(d) { S.cur.pageTime += Number(d.v) * 60000; commit(); },
   wizRmApp(d) { S.cur.apps = S.cur.apps.filter(a => a.id !== d.id); commit(); },
-  wizKind(d) { S.cur.kind = d.v; commit(); },
+  wizKind(d) { S.cur.kind = d.v; if (S.cur.nameAuto !== false) S.cur.name = niceName(S.cur.p, d.v); commit(); },
   wizStart(d) {
     const inc = S.cur; delete inc.wizStep; inc.mode = 'control';
     if (!inc.controlName) inc.controlName = defaultControl(inc);
@@ -144,12 +144,13 @@ const A = {
     closeSheet(); commit();
   },
   /* sitrep / message */
-  openSitrep() { const inc = S.cur; const prev = inc.sitreps[inc.sitreps.length - 1]; openSheet({ type: 'sitrep', d: { f: prev ? clone(prev.f || {}) : {}, threat: prev ? (prev.threat || []).slice() : [], useTasks: true, useChanges: true, potential: '', eta: '' } }); },
+  openSitrep() { const inc = S.cur; const prev = inc.sitreps[inc.sitreps.length - 1]; openSheet({ type: 'sitrep', d: { f: prev ? clone(prev.f || {}) : {}, threat: prev ? (prev.threat || []).slice() : [], tac: prev ? (prev.tac || []).slice() : [], useTasks: true, useChanges: true, potential: '', eta: '' } }); },
   srPick(d) { const f = S.sheet.d.f; f[d.k] = f[d.k] === d.v ? '' : d.v; renderSheet(); },
   srThreat(d) { const r = S.sheet.d.threat; const i = r.indexOf(d.v); if (i >= 0) r.splice(i, 1); else { if (d.v === 'Nil') r.length = 0; else { const n = r.indexOf('Nil'); if (n >= 0) r.splice(n, 1); } r.push(d.v); } renderSheet(); },
+  srTac(d) { const r = S.sheet.d.tac = S.sheet.d.tac || []; const i = r.indexOf(d.v); if (i >= 0) r.splice(i, 1); else r.push(d.v); renderSheet(); },
   srEta(d) { S.sheet.d.eta = S.sheet.d.eta === d.v ? '' : d.v; renderSheet(); },
   srTog(d) { S.sheet.d[d.v] = !S.sheet.d[d.v]; renderSheet(); },
-  srSent() { const inc = S.cur, d = S.sheet.d, t = now(); const text = sitrepText(inc, d); inc.sitreps.push({ t, text, f: clone(d.f), threat: d.threat.slice() }); logE('Sitrep: ' + text.replace(/^FireCom, [^,]+, sitrep\.\s*/, '')); inc.sitrepDue = t + S.settings.sitrepRepeat * 60000; closeSheet(); commit(); },
+  srSent() { const inc = S.cur, d = S.sheet.d, t = now(); const text = sitrepText(inc, d); inc.sitreps.push({ t, text, f: clone(d.f), threat: d.threat.slice(), tac: (d.tac || []).slice() }); logE('Sitrep: ' + text.replace(/^FireCom, sitrep from [^.]*\.\s*/, '')); inc.sitrepDue = t + S.settings.sitrepRepeat * 60000; closeSheet(); commit(); },
   openMsg() { openSheet({ type: 'message', d: { text: '' } }); },
   msgSent() { const inc = S.cur, d = S.sheet.d; if (!d.text) return; inc.messages.push({ t: now(), text: d.text }); logE('Message to FireCom: ' + d.text); closeSheet(); commit(); },
 
@@ -161,7 +162,7 @@ const A = {
     a.status = d.v; a.hist.push({ t: now(), s: d.v }); logE(a.name + ' ' + AG_ST[d.v].toLowerCase());
     if (a.name === 'Police' && d.v === 'onscene') inc.hazards.forEach(h => { if (h.name === 'Traffic' && h.status === 'identified') { h.status = 'managed'; logE('Traffic hazard managed (5-6 on scene)'); } });
     commit();
-    if (d.v === 'onscene' && inc.mode === 'control') { const nm = agencyRadioName(a); radioPrompt({ title: a.name + ' on scene', text: 'FireCom, ' + controlLabel(inc) + ', message: ' + nm + ' on scene.', plain: a.name + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: a.name + ' on scene' }); logE('Message to FireCom: ' + a.name + ' on scene'); }); }
+    if (d.v === 'onscene' && inc.mode === 'control') { const nm = agencyRadioName(a); radioPrompt({ title: a.name + ' on scene', text: 'FireCom, message from ' + radioFrom() + ': ' + nm + ' on scene.', plain: a.name + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: a.name + ' on scene' }); logE('Message to FireCom: ' + a.name + ' on scene'); }); }
     if (d.v === 'left' && a.name === 'Police' && inc.roads.some(r => !r.open)) askConfirm('Road reopened?', '5-6 has left but a road is still logged as closed.', 'Open road closures', () => { openSheet({ type: 'hazards' }); }, 'go');
   },
   /* hazards + roads */
@@ -193,17 +194,18 @@ const A = {
     if (d.v === 'left' && (c.runs || []).some(r => !r.end)) { const r = c.runs.find(r => !r.end); r.end = now(); logE('Contractor ' + c.type.toLowerCase() + ' machine stopped'); }
     c.status = d.v; c.hist.push({ t: now(), s: d.v }); logE('Contractor ' + c.type.toLowerCase() + (c.company ? ' (' + c.company + ')' : '') + ' ' + CON_ST[d.v].toLowerCase());
     commit();
-    if (d.v === 'onscene' && inc.mode === 'control') radioPrompt({ title: 'Contractor on scene', text: 'FireCom, ' + controlLabel(inc) + ', message: contractor ' + c.type.toLowerCase() + ' on scene.', plain: 'contractor ' + c.type.toLowerCase() + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: 'Contractor ' + c.type.toLowerCase() + ' on scene' }); logE('Message to FireCom: contractor ' + c.type.toLowerCase() + ' on scene'); });
+    if (d.v === 'onscene' && inc.mode === 'control') radioPrompt({ title: 'Contractor on scene', text: 'FireCom, message from ' + radioFrom() + ': contractor ' + c.type.toLowerCase() + ' on scene.', plain: 'contractor ' + c.type.toLowerCase() + ' on scene', later: true }, () => { inc.messages.push({ t: now(), text: 'Contractor ' + c.type.toLowerCase() + ' on scene' }); logE('Message to FireCom: contractor ' + c.type.toLowerCase() + ' on scene'); });
   },
   conRun(d) { const c = S.cur.contractors.find(x => x.id === d.id); c.runs = c.runs || []; const r = c.runs.find(r => !r.end); if (r) { r.end = now(); logE('Contractor ' + c.type.toLowerCase() + ' machine stopped (' + fmtHrs(machineMs(c)) + ' total)'); } else { c.runs.push({ start: now(), end: null }); logE('Contractor ' + c.type.toLowerCase() + ' machine started'); } commit(); },
   /* BA */
   baCtl() { const b = S.cur.ba; b.control = !b.control; logE(b.control ? 'BA control established' + (b.who ? ': ' + b.who : '') : 'BA control stood down'); commit(); },
-  baPat(d) { S.cur.ba.pattern = d.v; logE('BA search pattern: ' + d.v.toLowerCase()); commit(); },
-  baRit() { const v = (S.sheet.rit || '').trim(); if (!v) { toast('Who is RIT?'); return; } S.cur.ba.rit = v; logE('RIT: ' + v); commit(); },
-  baRitNA() { S.cur.ba.rit = 'RIT not available'; logE('RIT not available'); commit(); },
-  baRitClear() { S.cur.ba.rit = ''; commit(); },
-  baAdd() { const b = S.cur.ba; b.teams.push({ id: uid(), name: 'Team ' + (b.teams.length + 1), names: '', in: null, out: null }); commit(); },
-  baIn(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.in = now(); logE('BA ' + t.name + ' entered' + (t.names ? ' (' + t.names + ')' : '')); commit(); },
+  baPat(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.pattern = d.v; logE('BA ' + t.name + ': ' + d.v.toLowerCase() + ' search'); commit(); },
+  baMode(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.mode = d.v; if (d.v === 'external') t.pattern = ''; logE('BA ' + t.name + ': ' + d.v); commit(); },
+  baRitSet(d) { const b = S.cur.ba; b.rit = b.rit === d.v ? '' : d.v; logE(b.rit === 'ready' ? 'RIT ready' : b.rit === 'none' ? 'No RIT available' : 'RIT cleared'); commit(); },
+  baAddN(d) { S.cur.ba.teams.push({ id: uid(), name: d.v, mode: '', pattern: '', names: '', in: null, out: null }); logE('BA ' + d.v + ' set up'); commit(); },
+  baRm(d) { const b = S.cur.ba; b.teams = b.teams.filter(t => t.id !== d.id); commit(); },
+  noop() {},
+  baIn(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); if (!t.mode) { toast('Internal or external?'); return; } t.in = now(); logE('BA ' + t.name + ' entered (' + t.mode + (t.pattern ? ', ' + t.pattern.toLowerCase() + ' search' : '') + ')' + (t.names ? ': ' + t.names : '')); commit(); },
   baOut(d) { const t = S.cur.ba.teams.find(x => x.id === d.id); t.out = now(); logE('BA ' + t.name + ' exited (' + fmtDur(t.out - t.in) + ')'); commit(); },
   /* signals, notes, misc */
   sigTap(d) { const inc = S.cur; const s = SIGNALS.find(x => x[0] === d.v); radioPrompt({ title: 'Radio signal ' + s[0], text: 'FireCom, ' + controlLabel(inc) + ', radio signal ' + s[0] + '.', plain: s[2], later: false }, () => { logE(s[2]); if (s[0] === '5-6' || s[0] === '4-0') ensureAgency(inc, 'Police', 'requested'); }); },
