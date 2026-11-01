@@ -1,6 +1,6 @@
 'use strict';
 /* ===== Wordback core: utils, data, storage ===== */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 const APP_UPDATED = '1 Nov 2026';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
