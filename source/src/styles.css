@@ -121,3 +121,22 @@ pre.out{white-space:pre-wrap;background:#0d0f11;border:1px solid var(--line);bor
 .lvlbadge.flash{color:#000;background:var(--amber);border-color:var(--amber);animation:lvl 1s steps(2) infinite}
 @keyframes lvl{50%{background:transparent;color:var(--amber)}}
 @media (prefers-reduced-motion:reduce){.lvlbadge.flash{animation:none}}
+
+/* ---------- 1.0.3 ---------- */
+.themetog{margin-top:4px;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:3px 10px;font-size:.78em;font-weight:700;min-height:28px;cursor:pointer}
+.nextst{flex:none;min-height:40px;padding:6px 10px;font-size:.85em;font-weight:800;border-color:var(--green);color:var(--green)}
+.tile .ts{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.light{--bg:#f2f3f5;--panel:#ffffff;--panel2:#e6e9ec;--line:#b9c0c7;--fg:#101214;--muted:#4a525a;--dim:#69717a;--red:#c8191a;--amber:#a35f00;--green:#0d7a3a;--blue:#1662b8;--grey:#6b737b;--purple:#7a35c2;color-scheme:light}
+html.light .top,html.light .actions{background:#ffffff}
+html.light input[type=text],html.light input[type=number],html.light input[type=datetime-local],html.light input[type=time],html.light input:not([type]),html.light select,html.light textarea,html.light pre.out{background:#fff;color:var(--fg)}
+html.light .script{background:#fff;color:#000;border-color:#000}
+html.light .btn.go{background:#d9f5e3;color:#06451f}
+html.light .btn.warn{background:#ffeccc;color:#5a3500}
+html.light .btn.danger{background:#fde0df;color:#7a0d0c}
+html.light .timerbar.soon{background:#ffe7b8} html.light .timerbar.over{background:#ffd3d1}
+html.light .banner{background:#e3efff} html.light .banner.amber{background:#fff1d4}
+html.light .banner.red{background:#c8191a;color:#fff}
+html.light .pinned{background:#fff0e0}
+html.light .lockbar{background:#e2e4e7}
+html.light .chip.on{background:var(--fg);color:#fff}
+.tiles .tile:not(.wide){min-height:66px;padding:10px 12px}

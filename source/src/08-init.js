@@ -40,7 +40,7 @@ async function restoreFrom(file) {
     if (data.app !== 'wordback' || !Array.isArray(data.incidents)) throw new Error('Not a Wordback backup');
     askConfirm('Restore backup?', 'Adds ' + data.incidents.length + ' incident(s) from ' + esc(data.exported || 'the file') + '. Incidents already on this device with the same ID are replaced. Settings are replaced too.', 'Restore', async () => {
       for (const inc of data.incidents) { await DB.put('incidents', inc); const i = S.incidents.findIndex(x => x.id === inc.id); if (i >= 0) S.incidents[i] = inc; else S.incidents.push(inc); }
-      if (data.settings) { S.settings = Object.assign(clone(DEFAULT_SETTINGS), data.settings); saveSettings(); applySettings(); }
+      if (data.settings) { S.settings = Object.assign(clone(DEFAULT_SETTINGS), data.settings); saveSettings(); applySettings(); if (typeof v3Boot==='function') v3Boot(); }
       closeSheet(); go('home'); toast('Restored');
     }, 'go');
   } catch (err) { toast('Could not read that file: ' + err.message); }
@@ -64,7 +64,7 @@ async function boot() {
   const kv = await DB.all('kv'); const st = kv.find(x => x.k === 'settings');
   if (st && st.v) S.settings = Object.assign(clone(DEFAULT_SETTINGS), st.v);
   S.incidents = await DB.all('incidents');
-  applySettings();
+  applySettings(); if (typeof v3Boot==='function') v3Boot();
   // resume: if exactly one active job, go straight back into it
   const act = S.incidents.filter(i => i.status === 'active' && !i.wizStep).sort((a, b) => b.updated - a.updated);
   if (act.length && act[0].endStep == null && now() - act[0].updated < 12 * 3600000) { S.cur = act[0]; S.screen = 'inc'; }
