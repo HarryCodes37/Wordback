@@ -1,4 +1,4 @@
-const C='wordback-1793625167';
+const C='wordback-1794129475';
 const FILES=['./','index.html','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png','jspdf.umd.min.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>Promise.all(FILES.map(f=>c.add(new Request(f,{mode:f.startsWith('http')?'cors':'same-origin'})).catch(()=>{})))).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
